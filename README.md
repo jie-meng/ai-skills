@@ -16,6 +16,18 @@ A skill is a prompt/instruction bundle that teaches an AI assistant how to handl
 | 🎨 [Figma](./skills/figma/) | Extract design specs from Figma files for implementation. Covers layout, colors, typography, component specs, auto-triggering on Figma links, design-to-code workflows. | Implementing a design from Figma, inspecting colors/spacing, or matching components |
 | 📝 [Code Review (Staged)](./skills/code-review-staged/) | Structured code review for Git staged changes. Tech stack inference, 6-section review, auto-generated commit messages, smart file context reading. | "review staged" or similar code review requests |
 | 🧰 [GH Operations](./skills/gh-operations/) | Use GitHub CLI (`gh`) for issue and pull-request workflows: read/write issues, inspect PRs, create PRs, and read commits. | "use gh", "gh issue", "gh pr", "创建PR", "看PR", or commit lookup requests |
+| 🎫 [Jira](./skills/jira/) | Use Jira REST API (via bundled Python script) for issue, sprint, and board workflows: view/search/create/edit/assign/transition issues, comment, link, manage sprints. No CLI tools needed. | "jira issue", "jira card", "看卡", "看 jira", "PROJ-123", or sprint/board requests |
+
+---
+
+## Prerequisites
+
+Some skills require external CLI tools or API credentials (environment variables). See **[docs/INSTALLATION.md](./docs/INSTALLATION.md)** for setup instructions.
+
+**Quick agent setup** — copy and paste this prompt to your LLM agent (Claude Code, Cursor, Codex, etc.):
+
+> Check and configure ai-skills dependencies (CLI tools, API tokens, environment variables) by reading and following the instructions at:
+> https://raw.githubusercontent.com/jie-meng/ai-skills/main/docs/INSTALLATION.md
 
 ---
 
@@ -46,8 +58,11 @@ ai-skills/
 ├── skills/                    # All available skills
 │   ├── skill-creator/        # Create and improve skills
 │   ├── figma/                # Design extraction from Figma
-│   ├── gh-operations/         # GitHub CLI issue/PR/commit workflows
+│   ├── gh-operations/        # GitHub CLI issue/PR/commit workflows
+│   ├── jira/                 # Jira REST API issue/sprint/board workflows
 │   └── code-review-staged/   # Structured code reviews
+├── docs/
+│   └── INSTALLATION.md       # CLI dependency installation guide
 ├── scripts/
 │   └── setup                 # Installation script for AI assistants
 ├── AGENTS.md                 # Developer guidelines for agents
