@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**ai-skills** is a repository of reusable skills for AI coding assistants (Github Copilot, Claude Code, Cursor, Codex). Each skill is a self-contained directory with a `SKILL.md` that defines its metadata, triggering description, and instructions.
+**ai-skills** is a repository of reusable skills for AI coding assistants (Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode). Each skill is a self-contained directory with a `SKILL.md` that defines its metadata, triggering description, and instructions.
 
 Tech Stack:
 - **Primary Language**: Python 3.10+
@@ -14,7 +14,17 @@ Tech Stack:
 
 ## Setup Script
 
-`./scripts/setup <target-dir>` syncs all skills from `./skills/` to your AI assistant's user-level configuration directory. Example:
+`./scripts/setup` syncs all skills from `./skills/` to your AI assistant's user-level configuration directory.
+
+### Interactive menu (no arguments)
+
+```bash
+./scripts/setup
+```
+
+Displays a numbered menu of supported tools. Enter a number to install, or `0` for all. When installing all, tools whose config directory (`~/.claude`, `~/.cursor`, etc.) does not exist are skipped with a warning.
+
+### Direct target
 
 ```bash
 ./scripts/setup .copilot   # Github Copilot
@@ -22,7 +32,20 @@ Tech Stack:
 ./scripts/setup .cursor    # Cursor
 ```
 
-The script copies all skill directories into `~/<target-dir>/skills/`, creating it if needed, and reports which skills were added or updated.
+Copies all skill directories into `~/<target-dir>/skills/`, creating it if needed, and reports which skills were added or updated.
+
+### Supported tools
+
+| # | Tool | Config directory | Skills path |
+|---|---|---|---|
+| 1 | Copilot CLI / VS Code | `~/.copilot/` | `~/.copilot/skills/` |
+| 2 | Claude Code | `~/.claude/` | `~/.claude/skills/` |
+| 3 | Cursor | `~/.cursor/` | `~/.cursor/skills/` |
+| 4 | Codex | `~/.codex/` | `~/.codex/skills/` |
+| 5 | Gemini CLI | `~/.gemini/` | `~/.gemini/skills/` |
+| 6 | Qwen CLI | `~/.qwen/` | `~/.qwen/skills/` |
+| 7 | iFlow CLI | `~/.iflow/` | `~/.iflow/skills/` |
+| 8 | Opencode | `~/.config/opencode/` | `~/.config/opencode/skills/` |
 
 ---
 

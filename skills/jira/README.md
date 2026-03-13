@@ -78,18 +78,3 @@ python3 scripts/jira_api.py sprint-issues 123
 ```
 
 Run `python3 scripts/jira_api.py --help` for all available commands.
-
-## Install this skill in your AI assistant
-
-From repository root:
-
-```bash
-./scripts/setup .copilot
-```
-
-or:
-
-```bash
-./scripts/setup .claude
-./scripts/setup .cursor
-```

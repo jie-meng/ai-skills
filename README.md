@@ -1,6 +1,6 @@
 # ai-skills
 
-A repository of reusable skills for AI coding assistants. Skills are self-contained, well-documented modules that extend Github Copilot, Claude Code, Cursor, Codex, and other AI tools with specialized capabilities.
+A repository of reusable skills for AI coding assistants. Skills are self-contained, well-documented modules that extend Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode, and other AI tools with specialized capabilities.
 
 ## What is a Skill?
 
@@ -35,7 +35,38 @@ Some skills require external CLI tools or API credentials (environment variables
 
 ### Install skills
 
-Skills are typically configured at the user level for your AI assistant. To sync all skills to your user config, run:
+The setup script syncs all skills from this repository to your AI assistant's user-level configuration directory. It supports two modes:
+
+#### Interactive menu (recommended)
+
+Run without arguments to pick a tool from the menu:
+
+```bash
+./scripts/setup
+```
+
+```
+Select an AI tool to install skills:
+
+  1. Copilot CLI
+  2. Claude Code
+  3. Cursor
+  4. Codex
+  5. Gemini CLI
+  6. Qwen CLI
+  7. iFlow CLI
+  8. Opencode
+
+  0. All
+
+Enter your choice:
+```
+
+Choose `0` to install to all detected tools at once. Tools that are not installed on your machine will be skipped with a warning.
+
+#### Direct target
+
+Specify the target directory name explicitly:
 
 ```bash
 ./scripts/setup .copilot   # Github Copilot
@@ -43,7 +74,22 @@ Skills are typically configured at the user level for your AI assistant. To sync
 ./scripts/setup .cursor    # Cursor
 ```
 
-For project-specific setup, manually copy skills to your repository's skill directory. Example:
+### Supported tools and skills paths
+
+| # | Tool | User-level skills path |
+|---|---|---|
+| 1 | Copilot CLI / VS Code | `~/.copilot/skills/` |
+| 2 | Claude Code | `~/.claude/skills/` |
+| 3 | Cursor | `~/.cursor/skills/` |
+| 4 | Codex | `~/.codex/skills/` |
+| 5 | Gemini CLI | `~/.gemini/skills/` |
+| 6 | Qwen CLI | `~/.qwen/skills/` |
+| 7 | iFlow CLI | `~/.iflow/skills/` |
+| 8 | Opencode | `~/.config/opencode/skills/` |
+
+### Project-specific setup
+
+To install skills at the project level instead, manually copy them:
 
 ```bash
 cp -r skills/skill-name ./your-project/.github/skills/

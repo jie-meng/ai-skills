@@ -95,18 +95,3 @@ gh pr view "https://github.com/OWNER/REPO/pull/456" \
 
 Avoid rewriting URL input into `issue/pr number + --repo + --hostname` for read operations.
 If auth fails on the URL's host, run `gh auth login --hostname <host>` and rerun the same URL command.
-
-## Install this skill in your AI assistant
-
-From repository root:
-
-```bash
-./scripts/setup .copilot
-```
-
-or:
-
-```bash
-./scripts/setup .claude
-./scripts/setup .cursor
-```

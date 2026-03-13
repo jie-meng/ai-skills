@@ -1,87 +1,203 @@
 #!/bin/bash
-# Setup Skills - Copy skills from this repository to target directory
+# Setup Skills - Copy skills from this repository to AI assistant config directories
 
 # Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# Get the target directory from the first argument
-TARGET_DIR="$1"
-
-# Check if argument is provided
-if [ -z "$TARGET_DIR" ]; then
-    echo -e "${RED}Error: No target directory specified.${NC}"
-    echo "Usage: $0 <target-dir>"
-    echo "Example: $0 .copilot"
-    exit 1
-fi
-
-# Get the script's directory to find skills
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 SOURCE_SKILLS_DIR="$PROJECT_ROOT/skills"
 
-# Check if source skills directory exists
-if [ ! -d "$SOURCE_SKILLS_DIR" ]; then
-    echo -e "${RED}Error: Source skills directory not found: $SOURCE_SKILLS_DIR${NC}"
-    exit 1
-fi
+# Tool registry: "label|config_dir|skills_subpath"
+# config_dir is relative to $HOME unless it starts with .config/
+TOOLS=(
+    "Copilot CLI|.copilot|skills"
+    "Claude Code|.claude|skills"
+    "Cursor|.cursor|skills"
+    "Codex|.codex|skills"
+    "Gemini CLI|.gemini|skills"
+    "Qwen CLI|.qwen|skills"
+    "iFlow CLI|.iflow|skills"
+    "Opencode|.config/opencode|skills"
+)
 
-# Check if source skills directory is empty
-if [ -z "$(ls -A "$SOURCE_SKILLS_DIR" 2>/dev/null)" ]; then
-    echo -e "${RED}Error: Source skills directory is empty: $SOURCE_SKILLS_DIR${NC}"
-    exit 1
-fi
-
-# Construct target path in home directory
-TARGET_PATH="$HOME/$TARGET_DIR"
-
-# Check if target directory exists in home
-if [ ! -d "$TARGET_PATH" ]; then
-    echo -e "${RED}Error: Target directory not found in home: $TARGET_PATH${NC}"
-    echo -e "${YELLOW}Please make sure the directory exists first.${NC}"
-    exit 1
-fi
-
-# Create skills directory in target if it doesn't exist
-TARGET_SKILLS_DIR="$TARGET_PATH/skills"
-if [ ! -d "$TARGET_SKILLS_DIR" ]; then
-    echo -e "${YELLOW}Creating skills directory: $TARGET_SKILLS_DIR${NC}"
-    mkdir -p "$TARGET_SKILLS_DIR"
-fi
-
-# Detect changed skills before copy
-added_skills=()
-updated_skills=()
-
-for source_skill in "$SOURCE_SKILLS_DIR"/*; do
-    [ -d "$source_skill" ] || continue
-    skill_name="$(basename "$source_skill")"
-    target_skill="$TARGET_SKILLS_DIR/$skill_name"
-
-    if [ ! -d "$target_skill" ]; then
-        added_skills+=("$skill_name")
-    elif ! diff -qr "$source_skill" "$target_skill" >/dev/null 2>&1; then
-        updated_skills+=("$skill_name")
+validate_source() {
+    if [ ! -d "$SOURCE_SKILLS_DIR" ]; then
+        echo -e "${RED}Error: Source skills directory not found: $SOURCE_SKILLS_DIR${NC}"
+        exit 1
     fi
-done
+    if [ -z "$(ls -A "$SOURCE_SKILLS_DIR" 2>/dev/null)" ]; then
+        echo -e "${RED}Error: Source skills directory is empty: $SOURCE_SKILLS_DIR${NC}"
+        exit 1
+    fi
+}
 
-# Copy all skills from source to target
-echo "Copying skills from $SOURCE_SKILLS_DIR to $TARGET_SKILLS_DIR"
-cp -r "$SOURCE_SKILLS_DIR"/* "$TARGET_SKILLS_DIR/"
+get_tool_config_path() {
+    local config_dir="$1"
+    echo "$HOME/$config_dir"
+}
 
-echo -e "${GREEN}✓ Skills synced to $TARGET_SKILLS_DIR${NC}"
+sync_skills() {
+    local label="$1"
+    local config_dir="$2"
+    local skills_subpath="$3"
+    local config_path
+    config_path="$(get_tool_config_path "$config_dir")"
+    local target_skills_dir="$config_path/$skills_subpath"
 
-if [ ${#added_skills[@]} -gt 0 ]; then
-    echo -e "${GREEN}Added skills:${NC} ${added_skills[*]}"
+    if [ ! -d "$config_path" ]; then
+        echo -e "${YELLOW}⚠ $label is not installed (~/$config_dir not found), skipping.${NC}"
+        return 1
+    fi
+
+    if [ ! -d "$target_skills_dir" ]; then
+        echo -e "${YELLOW}Creating skills directory: $target_skills_dir${NC}"
+        mkdir -p "$target_skills_dir"
+    fi
+
+    local added_skills=()
+    local updated_skills=()
+
+    for source_skill in "$SOURCE_SKILLS_DIR"/*; do
+        [ -d "$source_skill" ] || continue
+        local skill_name
+        skill_name="$(basename "$source_skill")"
+        local target_skill="$target_skills_dir/$skill_name"
+
+        if [ ! -d "$target_skill" ]; then
+            added_skills+=("$skill_name")
+        elif ! diff -qr "$source_skill" "$target_skill" >/dev/null 2>&1; then
+            updated_skills+=("$skill_name")
+        fi
+    done
+
+    cp -r "$SOURCE_SKILLS_DIR"/* "$target_skills_dir/"
+
+    echo -e "${GREEN}✓ [$label] Skills synced to $target_skills_dir${NC}"
+
+    if [ ${#added_skills[@]} -gt 0 ]; then
+        echo -e "  ${GREEN}Added:${NC} ${added_skills[*]}"
+    fi
+    if [ ${#updated_skills[@]} -gt 0 ]; then
+        echo -e "  ${YELLOW}Updated:${NC} ${updated_skills[*]}"
+    fi
+    if [ ${#added_skills[@]} -eq 0 ] && [ ${#updated_skills[@]} -eq 0 ]; then
+        echo "  No skill changes detected."
+    fi
+    return 0
+}
+
+show_menu() {
+    echo ""
+    echo -e "${BOLD}Select an AI tool to install skills:${NC}"
+    echo ""
+    for i in "${!TOOLS[@]}"; do
+        IFS='|' read -r label _ _ <<< "${TOOLS[$i]}"
+        echo -e "  ${CYAN}$((i + 1))${NC}. $label"
+    done
+    echo ""
+    echo -e "  ${CYAN}0${NC}. All"
+    echo ""
+}
+
+install_all() {
+    local installed=0
+    local skipped=0
+
+    for entry in "${TOOLS[@]}"; do
+        IFS='|' read -r label config_dir skills_subpath <<< "$entry"
+        if sync_skills "$label" "$config_dir" "$skills_subpath"; then
+            ((installed++))
+        else
+            ((skipped++))
+        fi
+        echo ""
+    done
+
+    echo -e "${BOLD}Done.${NC} Installed: ${GREEN}$installed${NC}, Skipped: ${YELLOW}$skipped${NC}"
+}
+
+install_by_index() {
+    local idx="$1"
+    local entry="${TOOLS[$idx]}"
+    IFS='|' read -r label config_dir skills_subpath <<< "$entry"
+    sync_skills "$label" "$config_dir" "$skills_subpath"
+}
+
+# --- Main ---
+
+validate_source
+
+if [ -n "$1" ]; then
+    # Direct target mode (e.g. ./scripts/setup .copilot)
+    TARGET_DIR="$1"
+    TARGET_PATH="$HOME/$TARGET_DIR"
+
+    if [ ! -d "$TARGET_PATH" ]; then
+        echo -e "${RED}Error: ~/$TARGET_DIR not found. The tool does not appear to be installed.${NC}"
+        exit 1
+    fi
+
+    TARGET_SKILLS_DIR="$TARGET_PATH/skills"
+    if [ ! -d "$TARGET_SKILLS_DIR" ]; then
+        echo -e "${YELLOW}Creating skills directory: $TARGET_SKILLS_DIR${NC}"
+        mkdir -p "$TARGET_SKILLS_DIR"
+    fi
+
+    added_skills=()
+    updated_skills=()
+
+    for source_skill in "$SOURCE_SKILLS_DIR"/*; do
+        [ -d "$source_skill" ] || continue
+        skill_name="$(basename "$source_skill")"
+        target_skill="$TARGET_SKILLS_DIR/$skill_name"
+
+        if [ ! -d "$target_skill" ]; then
+            added_skills+=("$skill_name")
+        elif ! diff -qr "$source_skill" "$target_skill" >/dev/null 2>&1; then
+            updated_skills+=("$skill_name")
+        fi
+    done
+
+    cp -r "$SOURCE_SKILLS_DIR"/* "$TARGET_SKILLS_DIR/"
+
+    echo -e "${GREEN}✓ Skills synced to $TARGET_SKILLS_DIR${NC}"
+
+    if [ ${#added_skills[@]} -gt 0 ]; then
+        echo -e "${GREEN}Added skills:${NC} ${added_skills[*]}"
+    fi
+    if [ ${#updated_skills[@]} -gt 0 ]; then
+        echo -e "${YELLOW}Updated skills:${NC} ${updated_skills[*]}"
+    fi
+    if [ ${#added_skills[@]} -eq 0 ] && [ ${#updated_skills[@]} -eq 0 ]; then
+        echo "No skill changes detected."
+    fi
+
+    exit 0
 fi
 
-if [ ${#updated_skills[@]} -gt 0 ]; then
-    echo -e "${YELLOW}Updated skills:${NC} ${updated_skills[*]}"
+# Interactive menu mode
+show_menu
+
+read -rp "Enter your choice: " choice
+
+if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+    echo -e "${RED}Error: Please enter a number.${NC}"
+    exit 1
 fi
 
-if [ ${#added_skills[@]} -eq 0 ] && [ ${#updated_skills[@]} -eq 0 ]; then
-    echo "No skill changes detected."
+echo ""
+
+if [ "$choice" -eq 0 ]; then
+    install_all
+elif [ "$choice" -ge 1 ] && [ "$choice" -le ${#TOOLS[@]} ]; then
+    install_by_index $((choice - 1))
+else
+    echo -e "${RED}Error: Invalid choice. Please enter 0-${#TOOLS[@]}.${NC}"
+    exit 1
 fi
