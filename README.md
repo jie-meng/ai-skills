@@ -26,8 +26,10 @@ Some skills require external CLI tools or API credentials (environment variables
 
 **Quick agent setup** — copy and paste this prompt to your LLM agent (Claude Code, Cursor, Codex, etc.):
 
-> Check and configure ai-skills dependencies (CLI tools, API tokens, environment variables) by reading and following the instructions at:
-> https://raw.githubusercontent.com/jie-meng/ai-skills/main/docs/INSTALLATION.md
+```
+Check and configure ai-skills dependencies (CLI tools, API tokens, environment variables) by reading and following the instructions at:
+https://raw.githubusercontent.com/jie-meng/ai-skills/main/docs/INSTALLATION.md
+```
 
 ---
 
@@ -149,9 +151,9 @@ skills/skill-name/
       What this skill does and when to use it.
      Include trigger keywords for better AI assistant activation.
    ---
-   
+
    # My Skill
-   
+
    Detailed instructions, examples, and workflows...
    ```
 
