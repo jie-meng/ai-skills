@@ -76,7 +76,13 @@ sync_skills() {
         fi
     done
 
-    cp -r "$SOURCE_SKILLS_DIR"/* "$target_skills_dir/"
+    for source_skill in "$SOURCE_SKILLS_DIR"/*; do
+        [ -d "$source_skill" ] || continue
+        local skill_name_copy
+        skill_name_copy="$(basename "$source_skill")"
+        rm -rf "$target_skills_dir/$skill_name_copy"
+        cp -r "$source_skill" "$target_skills_dir/$skill_name_copy"
+    done
 
     echo -e "${GREEN}✓ [$label] Skills synced to $target_skills_dir${NC}"
 
@@ -164,7 +170,12 @@ if [ -n "$1" ]; then
         fi
     done
 
-    cp -r "$SOURCE_SKILLS_DIR"/* "$TARGET_SKILLS_DIR/"
+    for source_skill in "$SOURCE_SKILLS_DIR"/*; do
+        [ -d "$source_skill" ] || continue
+        skill_name="$(basename "$source_skill")"
+        rm -rf "$TARGET_SKILLS_DIR/$skill_name"
+        cp -r "$source_skill" "$TARGET_SKILLS_DIR/$skill_name"
+    done
 
     echo -e "${GREEN}✓ Skills synced to $TARGET_SKILLS_DIR${NC}"
 
