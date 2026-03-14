@@ -336,6 +336,15 @@ def select_tools_interactive() -> list[int] | None:
 # --- CLI modes ---
 
 
+def run_skills_check(selected_skills: list[Path]) -> None:
+    check_script = SCRIPT_DIR / "skills-check.py"
+    if not check_script.is_file():
+        return
+    skill_names = [skill.name for skill in selected_skills]
+    sys.stdout.flush()
+    subprocess.run([sys.executable, str(check_script)] + skill_names)
+
+
 def direct_target_mode(target_dir: str) -> None:
     """Install selected skills to a specific target directory."""
     target_path = Path.home() / target_dir
@@ -379,6 +388,8 @@ def direct_target_mode(target_dir: str) -> None:
     if not added and not updated:
         print("  No skill changes detected.")
 
+    run_skills_check(selected)
+
 
 def interactive_mode() -> None:
     """Full interactive mode: select tools, then select skills."""
@@ -409,6 +420,8 @@ def interactive_mode() -> None:
         f"{BOLD}Done.{NC} Installed: {GREEN}{installed}{NC}, "
         f"Skipped: {YELLOW}{skipped}{NC}"
     )
+
+    run_skills_check(selected_skills)
 
 
 def main() -> None:
