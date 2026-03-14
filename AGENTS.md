@@ -14,12 +14,12 @@ Tech Stack:
 
 ## Setup Script
 
-`./scripts/setup` syncs all skills from `./skills/` to your AI assistant's user-level configuration directory.
+`./scripts/setup-skills` syncs all skills from `./skills/` to your AI assistant's user-level configuration directory.
 
 ### Interactive menu (no arguments)
 
 ```bash
-./scripts/setup
+./scripts/setup-skills
 ```
 
 Displays a numbered menu of supported tools. Enter a number to install, or `0` for all. When installing all, tools whose config directory (`~/.claude`, `~/.cursor`, etc.) does not exist are skipped with a warning.
@@ -27,9 +27,9 @@ Displays a numbered menu of supported tools. Enter a number to install, or `0` f
 ### Direct target
 
 ```bash
-./scripts/setup .copilot   # Github Copilot
-./scripts/setup .claude    # Claude Code
-./scripts/setup .cursor    # Cursor
+./scripts/setup-skills .copilot   # Github Copilot
+./scripts/setup-skills .claude    # Claude Code
+./scripts/setup-skills .cursor    # Cursor
 ```
 
 Copies all skill directories into `~/<target-dir>/skills/`, creating it if needed, and reports which skills were added or updated.

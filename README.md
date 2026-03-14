@@ -44,7 +44,7 @@ The setup script syncs all skills from this repository to your AI assistant's us
 Run without arguments to pick a tool from the menu:
 
 ```bash
-./scripts/setup
+./scripts/setup-skills
 ```
 
 ```
@@ -71,9 +71,9 @@ Choose `0` to install to all detected tools at once. Tools that are not installe
 Specify the target directory name explicitly:
 
 ```bash
-./scripts/setup .copilot   # Github Copilot
-./scripts/setup .claude    # Claude Code
-./scripts/setup .cursor    # Cursor
+./scripts/setup-skills .copilot   # Github Copilot
+./scripts/setup-skills .claude    # Claude Code
+./scripts/setup-skills .cursor    # Cursor
 ```
 
 ### Supported tools and skills paths
@@ -112,7 +112,7 @@ ai-skills/
 ├── docs/
 │   └── INSTALLATION.md       # CLI dependency installation guide
 ├── scripts/
-│   └── setup                 # Installation script for AI assistants
+│   └── setup-skills            # Installation script for AI assistants
 ├── AGENTS.md                 # Developer guidelines for agents
 ├── LICENSE                   # MIT License
 └── README.md                 # This file

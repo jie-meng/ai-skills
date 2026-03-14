@@ -140,7 +140,7 @@ install_by_index() {
 validate_source
 
 if [ -n "$1" ]; then
-    # Direct target mode (e.g. ./scripts/setup .copilot)
+    # Direct target mode (e.g. ./scripts/setup-skills .copilot)
     TARGET_DIR="$1"
     TARGET_PATH="$HOME/$TARGET_DIR"
 
