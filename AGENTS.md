@@ -2,27 +2,52 @@
 
 ## Project Overview
 
-**mythril-agent-skills** is a repository of reusable skills for AI coding assistants (Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode, Grok CLI). Each skill is a self-contained directory with a `SKILL.md` that defines its metadata, triggering description, and instructions.
+**mythril-agent-skills** is a pip-installable package of reusable skills for AI coding assistants (Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode, Grok CLI). Each skill is a self-contained directory with a `SKILL.md` that defines its metadata, triggering description, and instructions.
 
 Tech Stack:
 - **Primary Language**: Python 3.10+
+- **Package Format**: `pyproject.toml` (setuptools)
 - **Configuration**: YAML (frontmatter in SKILL.md)
 - **Documentation**: Markdown
-- **Scripts**: Python (curses-based interactive installer and cleanup tool)
+- **CLI**: Python (curses-based interactive installer and cleanup tool)
 
 ---
 
-## Scripts
+## Package Structure
 
-Both scripts use Python `curses` for interactive multi-select UIs. They support macOS, Linux, and Windows (auto-install `windows-curses` on Windows if needed).
+```
+mythril-agent-skills/
+├── mythril_agent_skills/        # Python package
+│   ├── __init__.py
+│   ├── cli/                     # CLI entry points
+│   │   ├── skills_setup.py      # Interactive installer
+│   │   ├── skills_cleanup.py    # Interactive remover
+│   │   └── skills_check.py      # Dependency checker & configurator
+│   └── skills/                  # Bundled skill definitions
+├── scripts/                     # Backward-compatible wrappers (for dev use)
+├── pyproject.toml               # Package configuration
+└── ...
+```
 
-### Setup: `scripts/skills-setup.py`
+## CLI Commands
 
-Syncs selected skills from `./skills/` to your AI assistant's user-level configuration directory.
+Installed via `pip install mythril-agent-skills` (or `pip install -e .` for development):
+
+| Command | Entry point | Description |
+|---|---|---|
+| `skills-setup` | `mythril_agent_skills.cli.skills_setup:main` | Interactive installer |
+| `skills-cleanup` | `mythril_agent_skills.cli.skills_cleanup:main` | Interactive remover |
+| `skills-check` | `mythril_agent_skills.cli.skills_check:main` | Dependency checker |
+
+All CLI scripts use Python `curses` for interactive multi-select UIs. They support macOS, Linux, and Windows (auto-install `windows-curses` on Windows if needed).
+
+### Setup: `skills-setup`
+
+Syncs selected skills from the installed package to your AI assistant's user-level configuration directory.
 
 ```bash
-python3 scripts/skills-setup.py              # Interactive: select tools, then skills
-python3 scripts/skills-setup.py .cursor      # Direct target: skip tool selection
+skills-setup              # Interactive: select tools, then skills
+skills-setup .cursor      # Direct target: skip tool selection
 ```
 
 Interactive mode launches two multi-select screens:
@@ -31,17 +56,40 @@ Interactive mode launches two multi-select screens:
 
 Controls: Up/Down move, Space toggle, `a` all/none, Enter confirm, `q` quit.
 
-### Cleanup: `scripts/skills-cleanup.py`
+### Cleanup: `skills-cleanup`
 
 Scans AI tool config directories for installed skills and lets you selectively remove them.
 
 ```bash
-python3 scripts/skills-cleanup.py
+skills-cleanup
 ```
 
 Launches two screens:
 1. **Select AI tools** — choose which tool directories to scan (defaults to all detected)
 2. **Select skills to remove** — tree view showing each tool and its installed skills (defaults to none selected)
+
+### Check: `skills-check`
+
+Checks and configures external dependencies (CLI tools, API tokens) for selected skills.
+
+```bash
+skills-check gh-operations jira figma
+```
+
+Features:
+- Auto-installs missing CLI tools (e.g. `gh`) with user confirmation
+- Prompts for missing API keys and saves them to the shell config file
+- Verifies authentication status
+
+### Backward-compatible wrappers
+
+The `scripts/` directory contains thin wrappers for running without `pip install`:
+
+```bash
+python3 scripts/skills-setup.py
+python3 scripts/skills-cleanup.py
+python3 scripts/skills-check.py gh-operations jira figma
+```
 
 ### Supported tools
 
@@ -63,10 +111,10 @@ All config directories are relative to the user home directory (`~` on macOS/Lin
 
 ## Skill File Structure
 
-Each skill is a directory under `skills/`:
+Each skill is a directory under `mythril_agent_skills/skills/`:
 
 ```
-skills/skill-name/
+mythril_agent_skills/skills/skill-name/
 ├── SKILL.md              # Required: metadata + instructions
 ├── README.md             # Optional: overview for humans
 ├── scripts/              # Optional: helper Python/Bash scripts
@@ -114,7 +162,7 @@ Detailed instructions, examples, and workflows...
 Validate a skill's SKILL.md structure before committing:
 
 ```bash
-python3 skills/skill-creator/scripts/quick_validate.py <skill-path>
+python3 mythril_agent_skills/skills/skill-creator/scripts/quick_validate.py <skill-path>
 ```
 
 ---
@@ -173,16 +221,15 @@ def parse_skill_md(skill_path: Path) -> tuple[str, str, str]:
 
 ## Common Patterns & Anti-Patterns
 
-### ✅ DO:
+### DO:
 - Validate input early, raise informative errors
 - Use `pathlib.Path` for all file operations
 - Write type hints on all functions
 - Check file existence before reading: `if not path.exists():`
 - Use context managers: `with open(...) as f:`
 
-### ❌ DON'T:
+### DON'T:
 - Use bare `except:` or silently swallow exceptions
 - Hardcode absolute paths — use relative paths or CLI args
 - Mix string paths and Path objects in the same function
 - Delete or modify eval/test files to force passing validation
-

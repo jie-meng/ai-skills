@@ -1,6 +1,6 @@
 # mythril-agent-skills
 
-A repository of reusable skills for AI coding assistants. Skills are self-contained, well-documented modules that extend Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode, Grok CLI, and other AI tools with specialized capabilities.
+A collection of reusable skills for AI coding assistants. Skills are self-contained, well-documented modules that extend Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode, Grok CLI, and other AI tools with specialized capabilities.
 
 ## What is a Skill?
 
@@ -12,51 +12,85 @@ A skill is a prompt/instruction bundle that teaches an AI assistant how to handl
 
 | Skill | Description | Use When |
 |---|---|---|
-| 🛠️ [Skill Creator](./skills/skill-creator/) | Create skills/prompts for any AI platform. Includes drafting, test case generation, evaluation, benchmarking, description optimization. Supports Github Copilot, Claude Code, Cursor, Codex, and custom platforms. | Create a new skill, improve triggering, or benchmark skill performance |
-| 🎨 [Figma](./skills/figma/) | Extract design specs from Figma files for implementation. Covers layout, colors, typography, component specs, auto-triggering on Figma links, design-to-code workflows. | Implementing a design from Figma, inspecting colors/spacing, or matching components |
-| 📝 [Code Review (Staged)](./skills/code-review-staged/) | Structured code review for Git staged changes. Tech stack inference, 6-section review, auto-generated commit messages, smart file context reading. | "review staged" or similar code review requests |
-| 🧰 [GH Operations](./skills/gh-operations/) | Use GitHub CLI (`gh`) for issue and pull-request workflows: read/write issues, inspect PRs, create PRs, and read commits. | "use gh", "gh issue", "gh pr", "创建PR", "看PR", or commit lookup requests |
-| 🎫 [Jira](./skills/jira/) | Use Jira REST API (via bundled Python script) for issue, sprint, and board workflows: view/search/create/edit/assign/transition issues, comment, link, manage sprints. No CLI tools needed. | "jira issue", "jira card", "看卡", "看 jira", "PROJ-123", or sprint/board requests |
-
----
-
-## Prerequisites
-
-Some skills require external CLI tools or API credentials (environment variables). See **[docs/INSTALLATION.md](./docs/INSTALLATION.md)** for setup instructions.
-
-**Quick agent setup** — copy and paste this prompt to your LLM agent (Claude Code, Cursor, Codex, etc.):
-
-```
-Check and configure mythril-agent-skills dependencies (CLI tools, API tokens, environment variables) by reading and following the instructions at:
-https://raw.githubusercontent.com/jie-meng/mythril-agent-skills/main/docs/INSTALLATION.md
-```
+| [Skill Creator](./mythril_agent_skills/skills/skill-creator/) | Create skills/prompts for any AI platform. Includes drafting, test case generation, evaluation, benchmarking, description optimization. | Create a new skill, improve triggering, or benchmark skill performance |
+| [Figma](./mythril_agent_skills/skills/figma/) | Extract design specs from Figma files for implementation. Covers layout, colors, typography, component specs, auto-triggering on Figma links. | Implementing a design from Figma, inspecting colors/spacing, or matching components |
+| [Code Review (Staged)](./mythril_agent_skills/skills/code-review-staged/) | Structured code review for Git staged changes. Tech stack inference, 6-section review, auto-generated commit messages. | "review staged" or similar code review requests |
+| [GH Operations](./mythril_agent_skills/skills/gh-operations/) | Use GitHub CLI (`gh`) for issue and pull-request workflows: read/write issues, inspect PRs, create PRs, and read commits. | "use gh", "gh issue", "gh pr", or commit lookup requests |
+| [Jira](./mythril_agent_skills/skills/jira/) | Use Jira REST API (via bundled Python script) for issue, sprint, and board workflows. No CLI tools needed. | "jira issue", "jira card", "PROJ-123", or sprint/board requests |
 
 ---
 
 ## Quick Start
 
-### Install skills
+Choose the path that fits your needs:
 
-The setup script syncs skills from this repository to your AI assistant's user-level configuration directory. It provides an interactive curses-based multi-select UI so you can choose exactly which tools and skills to install.
+### Option A: Install via pip (recommended for most users)
 
-**Requirements**: Python 3.10+ (pre-installed on macOS and most Linux distros; on Windows, `windows-curses` is auto-installed if needed).
+Install the package from PyPI — no need to clone the repository:
 
-**Platforms**: macOS, Linux, Windows.
+```bash
+pip install mythril-agent-skills
+```
 
-#### Interactive mode (recommended)
+This gives you three commands:
 
-Run without arguments to launch the interactive installer:
+| Command | Description |
+|---|---|
+| `skills-setup` | Interactive installer — select AI tools and skills to install |
+| `skills-cleanup` | Interactive remover — select installed skills to remove |
+| `skills-check` | Dependency checker — verify and configure required CLI tools and API keys |
+
+**Install skills:**
+
+```bash
+skills-setup              # Interactive: select tools, then skills
+skills-setup .cursor      # Direct target: skip tool selection
+```
+
+**Remove skills:**
+
+```bash
+skills-cleanup
+```
+
+**Check dependencies:**
+
+```bash
+skills-check gh-operations jira figma
+```
+
+The checker will:
+- Detect missing CLI tools (e.g. `gh`) and offer to install them automatically
+- Prompt for missing API keys/tokens and save them to your shell config file
+- Verify authentication status (e.g. `gh auth status`)
+
+### Option B: Clone the repository (for developers)
+
+Clone if you want to create new skills, modify existing ones, or contribute:
+
+```bash
+git clone https://github.com/jie-meng/mythril-agent-skills.git
+cd mythril-agent-skills
+pip install -e .          # Install in development mode
+```
+
+Then use the same commands (`skills-setup`, `skills-cleanup`, `skills-check`).
+
+You can also run the scripts directly without installing:
 
 ```bash
 python3 scripts/skills-setup.py
+python3 scripts/skills-cleanup.py
 ```
 
-The installer guides you through two selection screens:
+---
+
+## How the Installer Works
+
+The `skills-setup` command guides you through two interactive screens:
 
 1. **Select AI tools** — choose which tools to install skills to
 2. **Select skills** — choose which skills to install
-
-Both screens use an interactive multi-select UI:
 
 ```
 Select skills to install:
@@ -75,15 +109,7 @@ Up/Down move | Space toggle | a all/none | Enter confirm | q quit
 
 Tools that are not installed on your machine are shown dimmed with `[-]` markers and cannot be selected.
 
-#### Direct target
-
-Specify the target directory name to skip tool selection (skill selection still appears):
-
-```bash
-python3 scripts/skills-setup.py .copilot   # Github Copilot
-python3 scripts/skills-setup.py .claude    # Claude Code
-python3 scripts/skills-setup.py .cursor    # Cursor
-```
+After installation, `skills-check` runs automatically for skills that need external dependencies (CLI tools or API tokens).
 
 ### Supported tools and skills paths
 
@@ -103,13 +129,11 @@ All config directories are relative to the user home directory (`~` on macOS/Lin
 
 ### Cleanup installed skills
 
-To remove previously installed skills from your AI tool directories:
-
 ```bash
-python3 scripts/skills-cleanup.py
+skills-cleanup
 ```
 
-The cleanup script guides you through two screens:
+The cleanup command guides you through two screens:
 
 1. **Select AI tools** — choose which tool directories to scan (defaults to all detected)
 2. **Select skills to remove** — a tree view showing each tool and its installed skills (defaults to none selected)
@@ -136,29 +160,49 @@ Up/Down move | Space toggle | a all/none | Enter confirm | q quit
 To install skills at the project level instead, manually copy them:
 
 ```bash
-cp -r skills/skill-name ./your-project/.github/skills/
+cp -r mythril_agent_skills/skills/skill-name ./your-project/.github/skills/
 # or
-cp -r skills/skill-name ./your-project/.claude/skills/
+cp -r mythril_agent_skills/skills/skill-name ./your-project/.claude/skills/
 ```
+
+---
+
+## Prerequisites
+
+Some skills require external CLI tools or API credentials. The `skills-check` command handles this automatically — it detects what's missing, installs CLI tools, and prompts for API keys.
+
+To manually check and configure all dependencies at once, ask your AI agent:
+
+```
+Run skills-check to verify and configure all mythril-agent-skills dependencies.
+```
+
+For a full reference of all required tools and credentials, see **[docs/INSTALLATION.md](./docs/INSTALLATION.md)**.
+
+---
 
 ## Project Structure
 
 ```
 mythril-agent-skills/
-├── skills/                    # All available skills
-│   ├── skill-creator/        # Create and improve skills
-│   ├── figma/                # Design extraction from Figma
-│   ├── gh-operations/        # GitHub CLI issue/PR/commit workflows
-│   ├── jira/                 # Jira REST API issue/sprint/board workflows
-│   └── code-review-staged/   # Structured code reviews
+├── mythril_agent_skills/        # Python package
+│   ├── cli/                     # CLI entry points
+│   │   ├── skills_setup.py      # Interactive installer
+│   │   ├── skills_cleanup.py    # Interactive remover
+│   │   └── skills_check.py      # Dependency checker & configurator
+│   └── skills/                  # Bundled skill definitions
+│       ├── skill-creator/       # Create and improve skills
+│       ├── figma/               # Design extraction from Figma
+│       ├── gh-operations/       # GitHub CLI issue/PR/commit workflows
+│       ├── jira/                # Jira REST API issue/sprint/board workflows
+│       └── code-review-staged/  # Structured code reviews
+├── scripts/                     # Backward-compatible wrappers
 ├── docs/
-│   └── INSTALLATION.md       # CLI dependency installation guide
-├── scripts/
-│   ├── setup_skills.py         # Interactive installer with multi-select UI
-│   └── cleanup_skills.py       # Interactive remover for installed skills
-├── AGENTS.md                 # Developer guidelines for agents
-├── LICENSE                   # MIT License
-└── README.md                 # This file
+│   └── INSTALLATION.md          # Full dependency reference
+├── pyproject.toml               # Package configuration
+├── AGENTS.md                    # Developer guidelines for agents
+├── LICENSE                      # Apache 2.0 License
+└── README.md                    # This file
 ```
 
 ### Skill Directory Structure
@@ -166,7 +210,7 @@ mythril-agent-skills/
 Each skill follows this pattern:
 
 ```
-skills/skill-name/
+mythril_agent_skills/skills/skill-name/
 ├── SKILL.md                  # Required: Metadata + instructions
 ├── README.md                 # Optional: Overview for humans
 ├── scripts/                  # Optional: Helper scripts (Python/Bash)
@@ -181,9 +225,9 @@ skills/skill-name/
 
 ### Adding a New Skill
 
-1. Create a new directory under `skills/`:
+1. Create a new directory under `mythril_agent_skills/skills/`:
    ```bash
-   mkdir skills/my-skill
+   mkdir mythril_agent_skills/skills/my-skill
    ```
 
 2. Create `SKILL.md` with required frontmatter:
