@@ -146,6 +146,7 @@ Detailed instructions, examples, and workflows...
 - `description`: When and why to trigger — this is the AI's activation signal. Be precise and "pushy": list specific contexts, keywords, and phrases.
 
 **Optional fields**:
+- `license`: Skill license (e.g., `Apache-2.0`, `MIT`). Defaults to Apache-2.0 if not specified.
 - `allowed-tools`: List of tools the skill may use
 - `compatibility`: Tool/platform requirements
 
