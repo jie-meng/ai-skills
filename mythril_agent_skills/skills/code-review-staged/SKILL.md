@@ -101,20 +101,69 @@ git diff --cached
 ```
 Retrieve all staged changes for review.
 
-### Step 2: Smart Context Retrieval (Optional but Recommended)
-Analyze the `diff` output to determine if external context is needed for a high-quality review.
+### Step 2: Repository Context Gathering
+
+Before reviewing the diff, gather project-level context to ensure the review respects the repo's conventions and architecture. Since you are already inside the repository, this is cheap and fast.
+
+#### 2a. Project structure overview
+
+Get a high-level view of the repository layout:
+```bash
+find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './.venv/*' -not -path './venv/*' -not -path './__pycache__/*' -not -path './dist/*' -not -path './build/*' -not -path './.next/*' -not -path './target/*' | head -150
+```
+
+This reveals the project's module organization, naming conventions, and overall architecture.
+
+#### 2b. Coding conventions and config files
+
+Read key project config files (if they exist) to understand coding standards. Check for and read **only the ones that exist and are relevant** to the languages in the diff:
+
+**AI agent instruction files** (highest priority — these define project conventions explicitly):
+
+| File | Tool |
+|---|---|
+| `AGENTS.md` | Cross-tool standard (Codex, Cursor, Copilot, Amp, Windsurf, Devin) |
+| `CLAUDE.md` | Claude Code |
+| `GEMINI.md` | Gemini CLI |
+| `.github/copilot-instructions.md` | GitHub Copilot |
+| `.cursorrules` / `.cursor/rules/` | Cursor |
+| `.windsurfrules` / `.windsurf/rules/` | Windsurf |
+
+**Project and build config files**:
+
+| File | Purpose |
+|---|---|
+| `README.md` | Project overview |
+| `CONTRIBUTING.md` | Development guidelines, contribution rules |
+| `pyproject.toml` / `setup.cfg` | Python project config, linting rules |
+| `package.json` | Node.js project config, lint config |
+| `.editorconfig` | Editor formatting rules |
+| `.eslintrc.*` / `biome.json` | JS/TS linting rules |
+| `Makefile` / `Justfile` | Build conventions |
+| `Cargo.toml` | Rust project config |
+| `go.mod` | Go module config |
+| `.clang-format` / `.clang-tidy` | C/C++ formatting rules |
+
+**Constraints:**
+- Read at most 3-5 config files — prioritize the ones most relevant to the changed files' languages
+- Skim only; don't read the entire file if it's large (use `start_line`/`end_line`)
+
+#### 2c. Smart context retrieval for changed files
+
+Analyze the diff to determine if related files need to be read for a high-quality review:
 - **When to read context**:
-    - If a function signature changes, check its usages or definition.
-    - If a class inherits from a base class not in diff, read the base class definition.
-    - If a variable type is unclear, check its declaration.
-    - If a config value changes, check where it's consumed if the impact is ambiguous.
-    - **Header/Source Pairing**: For C/C++, always check the corresponding `.h` or `.cpp` file if one is modified.
-    - **Tests**: Check if existing tests need updates or if new tests are consistent with existing patterns.
-- **How to read**: Use the `read_file` tool.
+    - If a function signature changes, check its usages or definition
+    - If a class inherits from a base class not in diff, read the base class definition
+    - If a variable type is unclear, check its declaration
+    - If a config value changes, check where it's consumed if the impact is ambiguous
+    - **Header/Source Pairing**: For C/C++, always check the corresponding `.h` or `.cpp` file if one is modified
+    - **Tests**: Check if existing tests need updates or if new tests are consistent with existing patterns
+- **Full file content**: For files with significant changes, read the entire file (not just the diff) to understand the complete context
+- **How to read**: Use the `read_file` tool
 - **Constraints**:
-    - **Limit Scope**: Read only 1-3 directly related files. Do not scan the whole directory.
-    - **Relevance**: Only read files that are strictly necessary to validate the correctness of the staged changes.
-    - **Efficiency**: If the file is huge, read only relevant sections (using `start_line`/`end_line` if possible) or search within it.
+    - **Limit Scope**: Read only 3-5 directly related files beyond the changed files themselves
+    - **Relevance**: Only read files that are strictly necessary to validate the correctness of the staged changes
+    - **Efficiency**: If the file is huge, read only relevant sections (using `start_line`/`end_line` if possible) or search within it
 
 ### Step 3: Get Current Branch
 ```bash
@@ -132,9 +181,10 @@ Analyze user's input to determine review output language:
 
 If Chinese review requested:
 
-#### 1. 技术栈推断
-- 根据diff内容推断主要使用的编程语言、框架或库，以及明显的后端/前端/全栈类型（如有）
-- 简单说明推断的依据（如语法、导入库、项目结构线索等）
+#### 1. 技术栈与项目上下文
+- 根据diff内容和项目配置文件推断主要使用的编程语言、框架或库
+- 简要说明项目的编码规范和风格（基于读取到的配置文件和已有代码）
+- 评估此变更是否符合项目整体风格和架构模式
 
 #### 2. 代码变更概览
 - 用简明扼要的语言总结此diff主要做了哪些事情（例如：修复bug、添加功能、重构、配置变更等）
@@ -142,12 +192,14 @@ If Chinese review requested:
 
 #### 3. 代码质量 & Clean Code 评价
 - 全面评估变更的代码风格、命名、注释、可读性、可维护性、设计架构、模块解耦、重复代码等
+- 特别关注：变更是否与项目现有代码风格一致（命名惯例、代码组织方式、错误处理模式等）
 - 发现任何易错写法、不安全代码、低效实现、反模式或不符合最佳实践的地方要具体列出
 - 指出被修改的具体位置与问题描述（行号/文件名/代码片段，或足够明确的定位描述）
 - 提出详细的修复/重构/优化建议，并解释理由
 
 #### 4. 潜在的重大问题和风险
 - 检查代码逻辑是否存在难以发现的bug、异常未处理、未校验边界条件、性能瓶颈、安全隐患等
+- 检查是否有遗漏的修改（如：改了接口但没改调用方，改了 schema 但没改迁移）
 - 指出这些疑点，并简单说明为何值得关注
 
 #### 5. 增量建议
@@ -164,9 +216,10 @@ If Chinese review requested:
 
 If English review requested:
 
-#### 1. Tech Stack Inference
-- Infer the primary programming language, frameworks, or libraries used based on the diff
-- Briefly explain your reasoning (e.g., language syntax, imported libraries, project structure clues)
+#### 1. Tech Stack & Project Context
+- Infer the primary programming language, frameworks, or libraries from the diff and project config files
+- Briefly describe the project's coding conventions and style (based on config files and existing code)
+- Assess whether this change aligns with the project's overall style and architectural patterns
 
 #### 2. Overview of Code Changes
 - Summarize in concise technical language what the main changes in this diff are (e.g., bug fixes, feature additions, refactoring, configuration changes)
@@ -174,12 +227,14 @@ If English review requested:
 
 #### 3. Code Quality & Clean Code Evaluation
 - Thoroughly assess code style, naming conventions, comments and documentation, readability, maintainability, architecture and modularity, code duplication, etc.
+- Pay special attention to: whether changes are consistent with existing project code style (naming conventions, code organization, error handling patterns, etc.)
 - Identify error-prone code, unsafe patterns, inefficient implementations, anti-patterns, or parts that violate best practices
 - Clearly specify the exact location and nature of each problem (line number, filename, code snippet, or sufficiently precise description)
 - Provide actionable suggestions for fixes/refactoring/optimization, along with explanatory reasoning
 
 #### 4. Major Issues and Risks
 - Evaluate whether there are hard-to-detect logic bugs, unhandled exceptions, missing boundary checks, performance bottlenecks, or security vulnerabilities
+- Check for missed changes (e.g., changed an interface but not its callers, changed a schema but not its migration)
 - Clearly point out these suspicious parts and briefly explain their potential impact
 
 #### 5. Incremental Suggestions

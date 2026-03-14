@@ -76,7 +76,7 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 NC = "\033[0m"
 
-CHECKABLE_SKILLS = ["gh-operations", "jira", "confluence", "figma"]
+CHECKABLE_SKILLS = ["gh-operations", "code-review-pr", "jira", "confluence", "figma"]
 
 
 def _detect_shell_config() -> Path:
@@ -481,7 +481,7 @@ def main() -> None:
 
     all_configured = True
 
-    if "gh-operations" in skills:
+    if "gh-operations" in skills or "code-review-pr" in skills:
         if not check_gh_operations(config_path):
             all_configured = False
 
