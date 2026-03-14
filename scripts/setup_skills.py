@@ -33,6 +33,7 @@ TOOLS: list[tuple[str, str, str]] = [
     ("Qwen CLI", ".qwen", "skills"),
     ("iFlow CLI", ".iflow", "skills"),
     ("Opencode", ".config/opencode", "skills"),
+    ("Grok CLI", ".grok", "skills"),
 ]
 
 
@@ -171,21 +172,43 @@ def curses_multi_select(
     title: str,
     items: list[str],
     preselected: list[bool] | None = None,
+    disabled: set[int] | None = None,
 ) -> list[int] | None:
     """Interactive multi-select with arrow keys, space, and enter.
 
     Returns list of selected indices, or None if user cancelled (q/Esc).
+    Disabled indices are shown dimmed and cannot be selected or toggled.
     """
     curses.curs_set(0)
     curses.use_default_colors()
     curses.init_pair(1, curses.COLOR_CYAN, -1)
     curses.init_pair(2, curses.COLOR_GREEN, -1)
     curses.init_pair(3, curses.COLOR_YELLOW, -1)
+    curses.init_pair(4, curses.COLOR_WHITE, -1)
 
-    selected = list(preselected) if preselected else [True] * len(items)
+    disabled = disabled or set()
+    if preselected:
+        selected = list(preselected)
+    else:
+        selected = [i not in disabled for i in range(len(items))]
+    for i in disabled:
+        selected[i] = False
+
     cursor = 0
     all_item = "Select All / Deselect All"
     total_items = 1 + len(items)
+    enabled_count = len(items) - len(disabled)
+
+    def _next_enabled(pos: int, direction: int) -> int:
+        """Find next non-disabled position, wrapping around."""
+        candidate = (pos + direction) % total_items
+        attempts = 0
+        while attempts < total_items:
+            if candidate == 0 or candidate - 1 not in disabled:
+                return candidate
+            candidate = (candidate + direction) % total_items
+            attempts += 1
+        return 0
 
     def draw() -> None:
         stdscr.clear()
@@ -195,7 +218,9 @@ def curses_multi_select(
         stdscr.addstr(1, 0, hint, curses.color_pair(3))
 
         row = 3
-        all_selected = all(selected)
+        enabled_sel = [s for i, s in enumerate(selected)
+                       if i not in disabled]
+        all_selected = bool(enabled_sel) and all(enabled_sel)
         marker = "[x]" if all_selected else "[ ]"
         attr = curses.A_REVERSE if cursor == 0 else 0
         try:
@@ -213,19 +238,26 @@ def curses_multi_select(
 
         row += 1
         for i, item in enumerate(items):
-            marker = "[x]" if selected[i] else "[ ]"
-            attr = curses.A_REVERSE if cursor == i + 1 else 0
-            color = curses.color_pair(2) if selected[i] else 0
+            is_disabled = i in disabled
+            if is_disabled:
+                marker = "[-]"
+                attr = curses.A_DIM
+                color = 0
+            else:
+                marker = "[x]" if selected[i] else "[ ]"
+                attr = curses.A_REVERSE if cursor == i + 1 else 0
+                color = curses.color_pair(2) if selected[i] else 0
             try:
                 stdscr.addstr(row + i, 0, f"  {marker}  {item}",
                               attr | color)
             except curses.error:
                 pass
 
-        count = sum(selected)
+        count = sum(1 for i, s in enumerate(selected)
+                    if s and i not in disabled)
         try:
             stdscr.addstr(row + len(items) + 1, 0,
-                          f"  {count}/{len(items)} selected",
+                          f"  {count}/{enabled_count} selected",
                           curses.color_pair(3))
         except curses.error:
             pass
@@ -237,20 +269,31 @@ def curses_multi_select(
         key = stdscr.getch()
 
         if key == curses.KEY_UP or key == ord("k"):
-            cursor = (cursor - 1) % total_items
+            cursor = _next_enabled(cursor, -1)
         elif key == curses.KEY_DOWN or key == ord("j"):
-            cursor = (cursor + 1) % total_items
+            cursor = _next_enabled(cursor, 1)
         elif key == ord(" "):
             if cursor == 0:
-                new_val = not all(selected)
-                selected = [new_val] * len(items)
-            else:
+                enabled_sel = [s for i, s in enumerate(selected)
+                               if i not in disabled]
+                new_val = not (bool(enabled_sel) and all(enabled_sel))
+                selected = [
+                    new_val if i not in disabled else False
+                    for i in range(len(items))
+                ]
+            elif cursor - 1 not in disabled:
                 selected[cursor - 1] = not selected[cursor - 1]
         elif key == ord("a"):
-            new_val = not all(selected)
-            selected = [new_val] * len(items)
+            enabled_sel = [s for i, s in enumerate(selected)
+                           if i not in disabled]
+            new_val = not (bool(enabled_sel) and all(enabled_sel))
+            selected = [
+                new_val if i not in disabled else False
+                for i in range(len(items))
+            ]
         elif key in (curses.KEY_ENTER, 10, 13):
-            return [i for i, s in enumerate(selected) if s]
+            return [i for i, s in enumerate(selected)
+                    if s and i not in disabled]
         elif key in (ord("q"), 27):
             return None
 
@@ -268,13 +311,27 @@ def select_skills_interactive(skill_dirs: list[Path]) -> list[Path] | None:
     return [skill_dirs[i] for i in indices]
 
 
+def _detect_uninstalled_tools() -> set[int]:
+    """Return indices of tools whose config directories don't exist."""
+    uninstalled: set[int] = set()
+    for i, (_, config_dir, _) in enumerate(TOOLS):
+        if not (Path.home() / config_dir).is_dir():
+            uninstalled.add(i)
+    return uninstalled
+
+
 def select_tools_interactive() -> list[int] | None:
     """Launch curses UI to select AI tools. Returns selected indices or None."""
-    items = [t[0] for t in TOOLS]
+    uninstalled = _detect_uninstalled_tools()
+    items = [
+        f"{t[0]}  (not installed)" if i in uninstalled else t[0]
+        for i, t in enumerate(TOOLS)
+    ]
     return curses.wrapper(
         curses_multi_select,
         "Select AI tools to install skills to:",
         items,
+        disabled=uninstalled,
     )
 
 

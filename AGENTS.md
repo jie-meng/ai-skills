@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**ai-skills** is a repository of reusable skills for AI coding assistants (Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode). Each skill is a self-contained directory with a `SKILL.md` that defines its metadata, triggering description, and instructions.
+**ai-skills** is a repository of reusable skills for AI coding assistants (Github Copilot, Claude Code, Cursor, Codex, Gemini CLI, Qwen CLI, iFlow CLI, Opencode, Grok CLI). Each skill is a self-contained directory with a `SKILL.md` that defines its metadata, triggering description, and instructions.
 
 Tech Stack:
 - **Primary Language**: Python 3.10+
@@ -57,6 +57,7 @@ All config directories are relative to the user home directory (`~` on macOS/Lin
 | 6 | Qwen CLI | `~/.qwen/` | `~/.qwen/skills/` |
 | 7 | iFlow CLI | `~/.iflow/` | `~/.iflow/skills/` |
 | 8 | Opencode | `~/.config/opencode/` | `~/.config/opencode/skills/` |
+| 9 | Grok CLI | `~/.grok/` | `~/.grok/skills/` |
 
 ---
 
