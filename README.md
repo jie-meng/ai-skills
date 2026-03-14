@@ -100,6 +100,36 @@ All config directories are relative to the user home directory (`~` on macOS/Lin
 | 7 | iFlow CLI | `~/.iflow/skills/` |
 | 8 | Opencode | `~/.config/opencode/skills/` |
 
+### Cleanup installed skills
+
+To remove previously installed skills from your AI tool directories:
+
+```bash
+python3 scripts/cleanup_skills.py
+```
+
+The cleanup script guides you through two screens:
+
+1. **Select AI tools** — choose which tool directories to scan (defaults to all detected)
+2. **Select skills to remove** — a tree view showing each tool and its installed skills (defaults to none selected)
+
+```
+Select skills to remove:
+Up/Down move | Space toggle | a all/none | Enter confirm | q quit
+
+  [ ]  Select All / Deselect All
+  ------------------------------------
+  Copilot CLI  ~/.copilot/skills/  (0/3)
+      [ ]  code-review-staged
+      [ ]  figma
+      [ ]  skill-creator
+  Cursor  ~/.cursor/skills/  (0/2)
+      [ ]  gh-operations
+      [ ]  jira
+
+  0/5 selected for removal
+```
+
 ### Project-specific setup
 
 To install skills at the project level instead, manually copy them:
@@ -123,7 +153,8 @@ ai-skills/
 ├── docs/
 │   └── INSTALLATION.md       # CLI dependency installation guide
 ├── scripts/
-│   └── setup_skills.py         # Interactive installer with multi-select UI
+│   ├── setup_skills.py         # Interactive installer with multi-select UI
+│   └── cleanup_skills.py       # Interactive remover for installed skills
 ├── AGENTS.md                 # Developer guidelines for agents
 ├── LICENSE                   # MIT License
 └── README.md                 # This file

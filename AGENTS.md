@@ -8,35 +8,40 @@ Tech Stack:
 - **Primary Language**: Python 3.10+
 - **Configuration**: YAML (frontmatter in SKILL.md)
 - **Documentation**: Markdown
-- **Setup Script**: Python (curses-based interactive installer)
+- **Scripts**: Python (curses-based interactive installer and cleanup tool)
 
 ---
 
-## Setup Script
+## Scripts
 
-`scripts/setup_skills.py` is a Python curses-based interactive installer that syncs selected skills from `./skills/` to your AI assistant's user-level configuration directory. It supports macOS, Linux, and Windows (auto-installs `windows-curses` on Windows if needed).
+Both scripts use Python `curses` for interactive multi-select UIs. They support macOS, Linux, and Windows (auto-install `windows-curses` on Windows if needed).
 
-### Interactive mode (no arguments)
+### Setup: `scripts/setup_skills.py`
 
-```bash
-python3 scripts/setup_skills.py
-```
-
-Launches two interactive multi-select screens:
-1. **Select AI tools** — choose which tools to install skills to (Up/Down move, Space toggle, `a` all/none, Enter confirm)
-2. **Select skills** — choose which skills to install (same controls)
-
-Tools whose config directory (`~/.claude`, `~/.cursor`, etc.) does not exist are skipped with a warning.
-
-### Direct target
+Syncs selected skills from `./skills/` to your AI assistant's user-level configuration directory.
 
 ```bash
-python3 scripts/setup_skills.py .copilot   # Github Copilot
-python3 scripts/setup_skills.py .claude    # Claude Code
-python3 scripts/setup_skills.py .cursor    # Cursor
+python3 scripts/setup_skills.py              # Interactive: select tools, then skills
+python3 scripts/setup_skills.py .cursor      # Direct target: skip tool selection
 ```
 
-Skips tool selection and goes directly to skill selection. Copies selected skill directories into `~/<target-dir>/skills/`, creating it if needed, and reports which skills were added or updated.
+Interactive mode launches two multi-select screens:
+1. **Select AI tools** — choose which tools to install skills to
+2. **Select skills** — choose which skills to install
+
+Controls: Up/Down move, Space toggle, `a` all/none, Enter confirm, `q` quit.
+
+### Cleanup: `scripts/cleanup_skills.py`
+
+Scans AI tool config directories for installed skills and lets you selectively remove them.
+
+```bash
+python3 scripts/cleanup_skills.py
+```
+
+Launches two screens:
+1. **Select AI tools** — choose which tool directories to scan (defaults to all detected)
+2. **Select skills to remove** — tree view showing each tool and its installed skills (defaults to none selected)
 
 ### Supported tools
 
