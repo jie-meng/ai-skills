@@ -7,6 +7,7 @@ description: >
   URL, or when the user asks about colors/spacing/fonts from a design, or says
   "implement this design", "match this component", "what does the design look like",
   "according to Figma", "from the design file".
+license: Apache-2.0
 ---
 
 # When to Use This Skill

@@ -9,6 +9,7 @@ description: >
   "confluence space", "wiki 空间". Also trigger when the user pastes a Confluence
   URL and wants to interact with it. No third-party CLI tools required — only
   Python 3.10+ standard library.
+license: Apache-2.0
 ---
 
 # When to Use This Skill

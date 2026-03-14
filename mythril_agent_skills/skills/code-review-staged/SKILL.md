@@ -1,6 +1,7 @@
 ---
 name: code-review-staged
 description: "Context-aware code review for git STAGED changes (git diff --cached). Triggers on: 'review staged', '审查暂存', 'staged code review', 'staged CR', '暂存区审查', 'review cached'. Reads related files (headers, definitions, tests) to validate changes in context. Auto-generates and copies commit message to clipboard. ONLY reviews staged changes, NOT unstaged or all changes."
+license: Apache-2.0
 ---
 
 # When to Use This Skill

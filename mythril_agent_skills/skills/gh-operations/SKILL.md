@@ -8,6 +8,7 @@ description: >
   action summaries, and handle auth/repo/permission errors explicitly. When users
   provide full issue/PR URLs, pass the URL directly to `gh` (URL-first) instead
   of rewriting into issue/PR number plus repo flags.
+license: Apache-2.0
 ---
 
 # When to Use This Skill

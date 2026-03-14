@@ -9,6 +9,7 @@ description: >
   trigger when the user mentions a Jira issue key (e.g. PROJ-123) or pastes a
   Jira URL and wants to interact with it. No third-party CLI tools required —
   only Python 3.10+ standard library.
+license: Apache-2.0
 ---
 
 # When to Use This Skill

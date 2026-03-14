@@ -7,6 +7,7 @@ description: >
   'review pull request', 'help me review', or provides a GitHub PR URL and asks for review.
   Fetches PR metadata, diff, full file contents of modified files, project structure, and coding
   conventions to deliver high-quality, context-aware reviews. Requires GitHub CLI (`gh`).
+license: Apache-2.0
 ---
 
 # When to Use This Skill

@@ -1,6 +1,7 @@
 ---
 name: skill-creator
 description: Create new skills and prompts for any AI platform (Claude Code, Claude.ai, OpenAI, Cursor, Windsurf, etc.), modify and improve existing ones, and measure performance. Use when users want to create a skill or system prompt from scratch for any AI tool, update or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a Claude Code skill's description for better triggering accuracy.
+license: Apache-2.0
 ---
 
 # Skill Creator
