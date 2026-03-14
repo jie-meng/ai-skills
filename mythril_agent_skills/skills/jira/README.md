@@ -25,27 +25,29 @@ No third-party CLI tools required — uses only the Jira REST API via a bundled 
 Add to your shell config (`~/.zshrc`, `~/.bashrc`, etc.):
 
 ```bash
-export JIRA_API_TOKEN="your-api-token"
-export JIRA_USER_EMAIL="you@example.com"
+export ATLASSIAN_API_TOKEN="your-api-token"
+export ATLASSIAN_USER_EMAIL="you@example.com"
 ```
 
 Optionally, set the base URL to avoid passing full URLs every time:
 
 ```bash
-export JIRA_BASE_URL="https://yoursite.atlassian.net"  # optional
+export ATLASSIAN_BASE_URL="https://yoursite.atlassian.net"  # optional
 ```
 
-For Jira Server/DC 8.14+ with PAT, only `JIRA_API_TOKEN` is needed (Bearer auth is used when `JIRA_USER_EMAIL` is not set).
+For Jira Server/DC 8.14+ with PAT, only `ATLASSIAN_API_TOKEN` is needed (Bearer auth is used when `ATLASSIAN_USER_EMAIL` is not set).
+
+These variables are shared with other Atlassian skills (e.g. Confluence).
 
 Reload your shell or run `source ~/.zshrc`.
 
 ### 3. Verify Setup
 
 ```bash
-# With JIRA_BASE_URL set
+# With ATLASSIAN_BASE_URL set
 python3 scripts/jira_api.py myself
 
-# Without JIRA_BASE_URL — pass a full URL
+# Without ATLASSIAN_BASE_URL — pass a full URL
 python3 scripts/jira_api.py view "https://yoursite.atlassian.net/browse/PROJ-123"
 ```
 
@@ -58,10 +60,10 @@ Issue commands accept either an issue key or a full Jira URL:
 python3 scripts/jira_api.py view PROJ-123
 python3 scripts/jira_api.py view "https://yoursite.atlassian.net/browse/PROJ-123"
 
-# Search (requires JIRA_BASE_URL)
+# Search (requires ATLASSIAN_BASE_URL)
 python3 scripts/jira_api.py search "assignee=currentUser() AND status!='Done'"
 
-# Create (requires JIRA_BASE_URL)
+# Create (requires ATLASSIAN_BASE_URL)
 python3 scripts/jira_api.py create --project PROJ --summary "Fix bug" --type Bug --priority High
 
 # Transition
@@ -71,7 +73,7 @@ python3 scripts/jira_api.py transition PROJ-123 31
 # Comment
 python3 scripts/jira_api.py comment PROJ-123 "Working on it"
 
-# Boards & sprints (requires JIRA_BASE_URL)
+# Boards & sprints (requires ATLASSIAN_BASE_URL)
 python3 scripts/jira_api.py boards --project PROJ
 python3 scripts/jira_api.py sprints 42 --state active
 python3 scripts/jira_api.py sprint-issues 123

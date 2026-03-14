@@ -76,7 +76,7 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 NC = "\033[0m"
 
-CHECKABLE_SKILLS = ["gh-operations", "jira", "figma"]
+CHECKABLE_SKILLS = ["gh-operations", "jira", "confluence", "figma"]
 
 
 def _detect_shell_config() -> Path:
@@ -280,47 +280,47 @@ def check_gh_operations(config_path: Path) -> bool:
 # --- Jira ---
 
 
-def check_jira(config_path: Path) -> bool:
-    """Check and configure Jira credentials."""
-    print(f"\n{BOLD}Jira:{NC}")
+def check_atlassian(config_path: Path) -> bool:
+    """Check and configure Atlassian credentials (shared by Jira and Confluence)."""
+    print(f"\n{BOLD}Atlassian (Jira / Confluence):{NC}")
 
     all_ok = True
 
-    token = os.environ.get("JIRA_API_TOKEN")
+    token = os.environ.get("ATLASSIAN_API_TOKEN")
     if token:
         masked = f"...{token[-4:]}" if len(token) >= 4 else "set"
-        print(f"  JIRA_API_TOKEN:   {GREEN}set{NC} (ending in {masked})")
+        print(f"  ATLASSIAN_API_TOKEN:   {GREEN}set{NC} (ending in {masked})")
     else:
-        print(f"  JIRA_API_TOKEN:   {RED}NOT SET{NC}")
+        print(f"  ATLASSIAN_API_TOKEN:   {RED}NOT SET{NC}")
         print("    How to get it:")
         print(f"    1. Open {BOLD}https://id.atlassian.com/manage-profile/security/api-tokens{NC}")
         print('    2. Click "Create API token", copy the token')
-        value = _prompt_value("Paste your Jira API token (or Enter to skip)", secret=True)
+        value = _prompt_value("Paste your Atlassian API token (or Enter to skip)", secret=True)
         if value:
-            _append_env_var(config_path, "JIRA_API_TOKEN", value)
+            _append_env_var(config_path, "ATLASSIAN_API_TOKEN", value)
         else:
             all_ok = False
 
-    email = os.environ.get("JIRA_USER_EMAIL")
+    email = os.environ.get("ATLASSIAN_USER_EMAIL")
     if email:
-        print(f"  JIRA_USER_EMAIL:  {GREEN}{email}{NC}")
+        print(f"  ATLASSIAN_USER_EMAIL:  {GREEN}{email}{NC}")
     else:
-        print(f"  JIRA_USER_EMAIL:  {RED}NOT SET{NC} (Required for Jira Cloud)")
+        print(f"  ATLASSIAN_USER_EMAIL:  {RED}NOT SET{NC} (Required for Jira Cloud)")
         value = _prompt_value("Enter your Atlassian account email (or Enter to skip)")
         if value:
-            _append_env_var(config_path, "JIRA_USER_EMAIL", value)
+            _append_env_var(config_path, "ATLASSIAN_USER_EMAIL", value)
         else:
             all_ok = False
 
-    url = os.environ.get("JIRA_BASE_URL")
+    url = os.environ.get("ATLASSIAN_BASE_URL")
     if url:
-        print(f"  JIRA_BASE_URL:    {GREEN}{url}{NC}")
+        print(f"  ATLASSIAN_BASE_URL:    {GREEN}{url}{NC}")
     else:
-        print(f"  JIRA_BASE_URL:    {YELLOW}NOT SET{NC} (Optional, recommended)")
+        print(f"  ATLASSIAN_BASE_URL:    {YELLOW}NOT SET{NC} (Optional, recommended)")
         print("    Example: https://yourcompany.atlassian.net")
-        value = _prompt_value("Enter your Jira base URL (or Enter to skip)")
+        value = _prompt_value("Enter your Atlassian base URL (or Enter to skip)")
         if value:
-            _append_env_var(config_path, "JIRA_BASE_URL", value)
+            _append_env_var(config_path, "ATLASSIAN_BASE_URL", value)
 
     return all_ok
 
@@ -485,8 +485,8 @@ def main() -> None:
         if not check_gh_operations(config_path):
             all_configured = False
 
-    if "jira" in skills:
-        if not check_jira(config_path):
+    if "jira" in skills or "confluence" in skills:
+        if not check_atlassian(config_path):
             all_configured = False
 
     if "figma" in skills:

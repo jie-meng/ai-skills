@@ -2,12 +2,12 @@
 """Jira REST API client for common developer workflows.
 
 Required environment variables:
-  JIRA_API_TOKEN  — API token or Personal Access Token
-  JIRA_USER_EMAIL — Atlassian account email (for Jira Cloud basic auth)
+  ATLASSIAN_API_TOKEN  — API token or Personal Access Token
+  ATLASSIAN_USER_EMAIL — Atlassian account email (for Jira Cloud basic auth)
 
 Optional:
-  JIRA_BASE_URL — e.g. https://yoursite.atlassian.net
-                  Not needed when passing a full Jira URL to issue commands.
+  ATLASSIAN_BASE_URL — e.g. https://yoursite.atlassian.net
+                       Not needed when passing a full Jira URL to issue commands.
 
 Uses only Python 3.10+ standard library (zero dependencies).
 """
@@ -19,14 +19,14 @@ from urllib.parse import urlencode, urlparse
 
 
 def get_token() -> str:
-    """Return JIRA_API_TOKEN from environment."""
-    token = os.environ.get("JIRA_API_TOKEN", "").strip()
+    """Return ATLASSIAN_API_TOKEN from environment."""
+    token = os.environ.get("ATLASSIAN_API_TOKEN", "").strip()
     if not token:
-        print("ERROR: JIRA_API_TOKEN not set.", file=sys.stderr)
+        print("ERROR: ATLASSIAN_API_TOKEN not set.", file=sys.stderr)
         print("", file=sys.stderr)
         print("Add to your shell config (~/.zshrc, ~/.bashrc, etc.):", file=sys.stderr)
-        print('  export JIRA_API_TOKEN="your-api-token"', file=sys.stderr)
-        print('  export JIRA_USER_EMAIL="you@example.com"', file=sys.stderr)
+        print('  export ATLASSIAN_API_TOKEN="your-api-token"', file=sys.stderr)
+        print('  export ATLASSIAN_USER_EMAIL="you@example.com"', file=sys.stderr)
         print("", file=sys.stderr)
         print("Get token: https://id.atlassian.com/manage-profile/security/api-tokens", file=sys.stderr)
         sys.exit(1)
@@ -35,12 +35,12 @@ def get_token() -> str:
 
 def get_base_url() -> str:
     """Return base URL from environment. Exits if not set."""
-    base_url = os.environ.get("JIRA_BASE_URL", "").strip().rstrip("/")
+    base_url = os.environ.get("ATLASSIAN_BASE_URL", "").strip().rstrip("/")
     if not base_url:
-        print("ERROR: JIRA_BASE_URL not set and no Jira URL provided.", file=sys.stderr)
+        print("ERROR: ATLASSIAN_BASE_URL not set and no Jira URL provided.", file=sys.stderr)
         print("", file=sys.stderr)
         print("Either set the env var:", file=sys.stderr)
-        print('  export JIRA_BASE_URL="https://yoursite.atlassian.net"', file=sys.stderr)
+        print('  export ATLASSIAN_BASE_URL="https://yoursite.atlassian.net"', file=sys.stderr)
         print("", file=sys.stderr)
         print("Or pass a full Jira URL instead of an issue key:", file=sys.stderr)
         print("  python3 jira_api.py view https://yoursite.atlassian.net/browse/PROJ-123", file=sys.stderr)
@@ -69,8 +69,8 @@ def parse_issue_input(input_str: str) -> tuple[str, str]:
 
 
 def _auth_header(token: str) -> str:
-    """Build auth header. Uses Basic auth if JIRA_USER_EMAIL is set, otherwise Bearer."""
-    email = os.environ.get("JIRA_USER_EMAIL", "").strip()
+    """Build auth header. Uses Basic auth if ATLASSIAN_USER_EMAIL is set, otherwise Bearer."""
+    email = os.environ.get("ATLASSIAN_USER_EMAIL", "").strip()
     if email:
         cred = base64.b64encode(f"{email}:{token}".encode()).decode()
         return f"Basic {cred}"
@@ -106,10 +106,10 @@ def jira_request(
     except urllib.error.HTTPError as e:
         body_text = e.read().decode(errors="replace")
         print(f"ERROR: Jira API {e.code} {method} {path}: {body_text}", file=sys.stderr)
-        if e.code in (401, 403) and not os.environ.get("JIRA_USER_EMAIL", "").strip():
+        if e.code in (401, 403) and not os.environ.get("ATLASSIAN_USER_EMAIL", "").strip():
             print("", file=sys.stderr)
-            print("HINT: Jira Cloud requires Basic auth. Set JIRA_USER_EMAIL:", file=sys.stderr)
-            print('  export JIRA_USER_EMAIL="you@example.com"', file=sys.stderr)
+            print("HINT: Jira Cloud requires Basic auth. Set ATLASSIAN_USER_EMAIL:", file=sys.stderr)
+            print('  export ATLASSIAN_USER_EMAIL="you@example.com"', file=sys.stderr)
         sys.exit(1)
     except urllib.error.URLError as e:
         print(f"ERROR: Network error: {e.reason}", file=sys.stderr)

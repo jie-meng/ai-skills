@@ -20,13 +20,13 @@ description: >
 
 # Prerequisites
 
-Requires `JIRA_API_TOKEN` and `JIRA_USER_EMAIL`. See `README.md` in this skill directory for setup.
+Requires `ATLASSIAN_API_TOKEN` and `ATLASSIAN_USER_EMAIL`. See `README.md` in this skill directory for setup.
 
-- `JIRA_API_TOKEN` (**required**) — API token or Personal Access Token
-- `JIRA_USER_EMAIL` (**required for Jira Cloud**) — Atlassian account email, used for Basic auth
-- `JIRA_BASE_URL` (optional) — e.g. `https://yoursite.atlassian.net`. Not needed when passing full Jira URLs.
+- `ATLASSIAN_API_TOKEN` (**required**) — API token or Personal Access Token
+- `ATLASSIAN_USER_EMAIL` (**required for Jira Cloud**) — Atlassian account email, used for Basic auth
+- `ATLASSIAN_BASE_URL` (optional) — e.g. `https://yoursite.atlassian.net`. Not needed when passing full Jira URLs.
 
-When `JIRA_BASE_URL` is not set, issue commands accept a full Jira URL instead of an issue key. For commands without a specific issue (search, create, boards, sprints, myself), `JIRA_BASE_URL` is required.
+When `ATLASSIAN_BASE_URL` is not set, issue commands accept a full Jira URL instead of an issue key. For commands without a specific issue (search, create, boards, sprints, myself), `ATLASSIAN_BASE_URL` is required.
 
 # Workflow
 
@@ -44,10 +44,10 @@ One script is available in `scripts/` relative to this skill directory. It requi
 Accepts either an issue key or a full Jira URL:
 
 ```bash
-# With JIRA_BASE_URL set
+# With ATLASSIAN_BASE_URL set
 python3 scripts/jira_api.py view PROJ-123
 
-# Without JIRA_BASE_URL — pass the full URL directly
+# Without ATLASSIAN_BASE_URL — pass the full URL directly
 python3 scripts/jira_api.py view "https://yoursite.atlassian.net/browse/PROJ-123"
 ```
 
@@ -55,7 +55,7 @@ When the user pastes a Jira URL, pass it directly — the script parses out the 
 
 ### Search issues via JQL
 
-Requires `JIRA_BASE_URL`.
+Requires `ATLASSIAN_BASE_URL`.
 
 ```bash
 python3 scripts/jira_api.py search "project=PROJ AND status='In Progress'"
@@ -80,7 +80,7 @@ Common JQL patterns for developers:
 
 ### Create an issue
 
-Requires `JIRA_BASE_URL`.
+Requires `ATLASSIAN_BASE_URL`.
 
 ```bash
 python3 scripts/jira_api.py create --project PROJ --summary "Fix login timeout" --type Bug
@@ -141,7 +141,7 @@ python3 scripts/jira_api.py comments PROJ-123 --max-results 5
 
 ### Link two issues
 
-Requires `JIRA_BASE_URL`.
+Requires `ATLASSIAN_BASE_URL`.
 
 ```bash
 python3 scripts/jira_api.py link PROJ-123 PROJ-456 Blocks
@@ -149,7 +149,7 @@ python3 scripts/jira_api.py link PROJ-123 PROJ-456 Blocks
 
 ### Current user info
 
-Requires `JIRA_BASE_URL`.
+Requires `ATLASSIAN_BASE_URL`.
 
 ```bash
 python3 scripts/jira_api.py myself
@@ -157,7 +157,7 @@ python3 scripts/jira_api.py myself
 
 ### List boards / sprints / sprint issues
 
-Requires `JIRA_BASE_URL`.
+Requires `ATLASSIAN_BASE_URL`.
 
 ```bash
 python3 scripts/jira_api.py boards --project PROJ
@@ -186,8 +186,8 @@ For every task, provide:
 
 # Error Handling
 
-- **Missing JIRA_API_TOKEN**: The script reports the missing variable and how to set it.
-- **Missing JIRA_BASE_URL**: Only required for non-URL commands. The script suggests passing a full URL instead.
+- **Missing ATLASSIAN_API_TOKEN**: The script reports the missing variable and how to set it.
+- **Missing ATLASSIAN_BASE_URL**: Only required for non-URL commands. The script suggests passing a full URL instead.
 - **401 Unauthorized**: Token is invalid or expired — regenerate at https://id.atlassian.com/manage-profile/security/api-tokens
 - **403 Forbidden**: User lacks permission for this operation in the target project.
 - **404 Not Found**: Issue key or project doesn't exist — verify the key format (e.g. `PROJ-123`).

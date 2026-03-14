@@ -74,42 +74,43 @@ gh auth login --hostname <your-ghe-host>
 
 ---
 
-### Jira (`JIRA_API_TOKEN`, `JIRA_USER_EMAIL`, `JIRA_BASE_URL`)
+### Atlassian (`ATLASSIAN_API_TOKEN`, `ATLASSIAN_USER_EMAIL`, `ATLASSIAN_BASE_URL`)
 
-**Required by**: [jira](../mythril_agent_skills/skills/jira/)
+**Required by**: [jira](../mythril_agent_skills/skills/jira/), [confluence](../mythril_agent_skills/skills/confluence/)
 
-No CLI tool needed — uses a bundled Python script (Python 3.10+ standard library only).
+No CLI tool needed — uses bundled Python scripts (Python 3.10+ standard library only).
 
-#### `JIRA_API_TOKEN` (required)
+#### `ATLASSIAN_API_TOKEN` (required)
 
 1. Open https://id.atlassian.com/manage-profile/security/api-tokens
 2. Click **"Create API token"**
 3. Enter a label (e.g. `ai-skills`), click **Create**, then **Copy**
 
 ```bash
-export JIRA_API_TOKEN="<token>"
+export ATLASSIAN_API_TOKEN="<token>"
 ```
 
-#### `JIRA_USER_EMAIL` (required for Jira Cloud)
+#### `ATLASSIAN_USER_EMAIL` (required for Atlassian Cloud)
 
 The email address associated with your Atlassian account:
 
 ```bash
-export JIRA_USER_EMAIL="<email>"
+export ATLASSIAN_USER_EMAIL="<email>"
 ```
 
 For Jira Server/DC 8.14+ using Personal Access Tokens, this variable is not needed.
 
-#### `JIRA_BASE_URL` (optional but recommended)
+#### `ATLASSIAN_BASE_URL` (optional but recommended)
 
 ```bash
-export JIRA_BASE_URL="https://yourcompany.atlassian.net"
+export ATLASSIAN_BASE_URL="https://yourcompany.atlassian.net"
 ```
 
 #### Verify
 
 ```bash
 python3 <path-to-skills>/jira/scripts/jira_api.py myself
+python3 <path-to-skills>/confluence/scripts/confluence_api.py spaces
 ```
 
 ---
