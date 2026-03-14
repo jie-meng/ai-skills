@@ -56,10 +56,12 @@ skills-cleanup
 **Check dependencies:**
 
 ```bash
-skills-check gh-operations jira figma
+skills-check                    # Interactive: select skills to check
+skills-check gh-operations jira figma  # Check specific skills
 ```
 
 The checker will:
+- Launch an interactive UI to select skills (when run without arguments)
 - Detect missing CLI tools (e.g. `gh`) and offer to install them automatically
 - Prompt for missing API keys/tokens and save them to your shell config file
 - Verify authentication status (e.g. `gh auth status`)
@@ -162,20 +164,6 @@ cp -r mythril_agent_skills/skills/skill-name ./your-project/.github/skills/
 # or
 cp -r mythril_agent_skills/skills/skill-name ./your-project/.claude/skills/
 ```
-
----
-
-## Prerequisites
-
-Some skills require external CLI tools or API credentials. The `skills-check` command handles this automatically — it detects what's missing, installs CLI tools, and prompts for API keys.
-
-To manually check and configure all dependencies at once, ask your AI agent:
-
-```
-Run skills-check to verify and configure all mythril-agent-skills dependencies.
-```
-
-For a full reference of all required tools and credentials, see **[docs/INSTALLATION.md](./docs/INSTALLATION.md)**.
 
 ---
 
