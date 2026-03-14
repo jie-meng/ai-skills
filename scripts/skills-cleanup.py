@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Cleanup Skills - Interactive remover for installed AI assistant skills.
+"""Skills Cleanup - Interactive remover for installed AI assistant skills.
 
 Scans AI tool config directories for installed skills, presents a tree-view
 multi-select UI, and deletes the selected skill directories.
 Supports macOS, Linux, and Windows (auto-installs windows-curses if needed).
 
 Usage:
-    python3 scripts/cleanup_skills.py
+    python3 scripts/skills-cleanup.py
 """
 
 from __future__ import annotations
@@ -41,6 +41,7 @@ def _enable_windows_ansi() -> None:
         return
     try:
         import ctypes
+
         kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
         handle = kernel32.GetStdHandle(-11)
         mode = ctypes.c_ulong()
@@ -62,8 +63,10 @@ def _ensure_curses() -> None:
                 stdout=subprocess.DEVNULL,
             )
         else:
-            print("Error: curses module not available. "
-                  "Please install Python with curses support.")
+            print(
+                "Error: curses module not available. "
+                "Please install Python with curses support."
+            )
             sys.exit(1)
 
 
@@ -96,9 +99,7 @@ class SkillEntry:
 class ToolGroup:
     """A tool with its installed skills."""
 
-    def __init__(
-        self, label: str, config_dir: str, skills_dir: Path
-    ) -> None:
+    def __init__(self, label: str, config_dir: str, skills_dir: Path) -> None:
         self.label = label
         self.config_dir = config_dir
         self.skills_dir = skills_dir
@@ -209,10 +210,8 @@ def curses_tree_select(
         stdscr.clear()
         max_y, max_x = stdscr.getmaxyx()
 
-        stdscr.addstr(0, 0, "Select skills to remove:",
-                      curses.A_BOLD)
-        hint = ("Up/Down move | Space toggle | "
-                "a all/none | Enter confirm | q quit")
+        stdscr.addstr(0, 0, "Select skills to remove:", curses.A_BOLD)
+        hint = "Up/Down move | Space toggle | a all/none | Enter confirm | q quit"
         try:
             stdscr.addstr(1, 0, hint, curses.color_pair(3))
         except curses.error:
@@ -246,8 +245,7 @@ def curses_tree_select(
             attr = curses.A_REVERSE if cursor == 0 else 0
             text = f"  {marker}  Select All / Deselect All"
             try:
-                stdscr.addstr(screen_row, 0, text,
-                              attr | curses.color_pair(1))
+                stdscr.addstr(screen_row, 0, text, attr | curses.color_pair(1))
             except curses.error:
                 pass
         line += 1
@@ -256,45 +254,45 @@ def curses_tree_select(
         if line >= scroll_offset and line < scroll_offset + visible_lines:
             screen_row = content_start + (line - scroll_offset)
             try:
-                stdscr.addstr(screen_row, 0, "  " + "-" * 36,
-                              curses.color_pair(1))
+                stdscr.addstr(screen_row, 0, "  " + "-" * 36, curses.color_pair(1))
             except curses.error:
                 pass
         line += 1
 
         # --- Tree rows ---
         for row_idx, (text, group, skill) in enumerate(rows):
-            if line >= scroll_offset and (
-                line < scroll_offset + visible_lines
-            ):
+            if line >= scroll_offset and (line < scroll_offset + visible_lines):
                 screen_row = content_start + (line - scroll_offset)
                 item_cursor = row_idx + 1  # +1 because 0 is all-toggle
 
                 if skill is None:
                     # Tool header — not selectable
-                    group_sel = sum(
-                        1 for s in group.skills if s.selected
-                    )
+                    group_sel = sum(1 for s in group.skills if s.selected)
                     group_total = len(group.skills)
-                    header = (f"  {text}  "
-                              f"~/{group.config_dir}/skills/ "
-                              f"({group_sel}/{group_total})")
+                    header = (
+                        f"  {text}  "
+                        f"~/{group.config_dir}/skills/ "
+                        f"({group_sel}/{group_total})"
+                    )
                     try:
                         stdscr.addstr(
-                            screen_row, 0, header,
+                            screen_row,
+                            0,
+                            header,
                             curses.A_BOLD | curses.color_pair(1),
                         )
                     except curses.error:
                         pass
                 else:
                     marker = "[x]" if skill.selected else "[ ]"
-                    attr = (curses.A_REVERSE
-                            if cursor == item_cursor else 0)
-                    color = (curses.color_pair(2) if skill.selected
-                             else curses.color_pair(4))
+                    attr = curses.A_REVERSE if cursor == item_cursor else 0
+                    color = (
+                        curses.color_pair(2) if skill.selected else curses.color_pair(4)
+                    )
                     try:
                         stdscr.addstr(
-                            screen_row, 0,
+                            screen_row,
+                            0,
                             f"    {marker}  {text}",
                             attr | color,
                         )
@@ -310,9 +308,12 @@ def curses_tree_select(
             max_y - 1,
         )
         try:
-            stdscr.addstr(footer_row, 0,
-                          f"  {count}/{total} selected for removal",
-                          curses.color_pair(3))
+            stdscr.addstr(
+                footer_row,
+                0,
+                f"  {count}/{total} selected for removal",
+                curses.color_pair(3),
+            )
         except curses.error:
             pass
 
@@ -364,14 +365,12 @@ def delete_selected(groups: list[ToolGroup]) -> None:
                 total_deleted += 1
 
         if deleted_names:
-            print(f"{RED}✗ [{group.label}] Removed:{NC} "
-                  f"{' '.join(deleted_names)}")
+            print(f"{RED}✗ [{group.label}] Removed:{NC} {' '.join(deleted_names)}")
 
     if total_deleted == 0:
         print("No skills were removed.")
     else:
-        print(f"\n{BOLD}Done.{NC} Removed {RED}{total_deleted}{NC} "
-              f"skill(s) total.")
+        print(f"\n{BOLD}Done.{NC} Removed {RED}{total_deleted}{NC} skill(s) total.")
 
 
 # --- Main ---
@@ -381,15 +380,12 @@ def main() -> None:
     groups = scan_installed_tools()
 
     if not groups:
-        print(f"{YELLOW}No installed skills found in any "
-              f"AI tool directory.{NC}")
+        print(f"{YELLOW}No installed skills found in any AI tool directory.{NC}")
         sys.exit(0)
 
     # Step 1: Select tools to scan (default: all selected)
     tool_items = [
-        f"{g.label}  ~/{g.config_dir}/skills/  "
-        f"({len(g.skills)} skills)"
-        for g in groups
+        f"{g.label}  ~/{g.config_dir}/skills/  ({len(g.skills)} skills)" for g in groups
     ]
     tool_indices = curses.wrapper(
         _curses_tool_select,
@@ -408,9 +404,7 @@ def main() -> None:
         print("Cancelled.")
         sys.exit(0)
 
-    selected_skills = [
-        s for g in selected_groups for s in g.skills if s.selected
-    ]
+    selected_skills = [s for g in selected_groups for s in g.skills if s.selected]
     if not selected_skills:
         print("No skills selected for removal.")
         sys.exit(0)
@@ -425,7 +419,7 @@ def _curses_tool_select(
     title: str,
     items: list[str],
 ) -> list[int] | None:
-    """Multi-select for tools (reuses the same pattern as setup_skills)."""
+    """Multi-select for tools (reuses the same pattern as skills-setup)."""
     curses.curs_set(0)
     curses.use_default_colors()
     curses.init_pair(1, curses.COLOR_CYAN, -1)
@@ -440,8 +434,7 @@ def _curses_tool_select(
     def draw() -> None:
         stdscr.clear()
         stdscr.addstr(0, 0, title, curses.A_BOLD)
-        hint = ("Up/Down move | Space toggle | "
-                "a all/none | Enter confirm | q quit")
+        hint = "Up/Down move | Space toggle | a all/none | Enter confirm | q quit"
         stdscr.addstr(1, 0, hint, curses.color_pair(3))
 
         row = 3
@@ -449,15 +442,15 @@ def _curses_tool_select(
         marker = "[x]" if all_selected else "[ ]"
         attr = curses.A_REVERSE if cursor == 0 else 0
         try:
-            stdscr.addstr(row, 0, f"  {marker}  {all_item}",
-                          attr | curses.color_pair(1))
+            stdscr.addstr(
+                row, 0, f"  {marker}  {all_item}", attr | curses.color_pair(1)
+            )
         except curses.error:
             pass
 
         row += 1
         try:
-            stdscr.addstr(row, 0, "  " + "-" * 36,
-                          curses.color_pair(1))
+            stdscr.addstr(row, 0, "  " + "-" * 36, curses.color_pair(1))
         except curses.error:
             pass
 
@@ -467,16 +460,18 @@ def _curses_tool_select(
             attr = curses.A_REVERSE if cursor == i + 1 else 0
             color = curses.color_pair(2) if selected[i] else 0
             try:
-                stdscr.addstr(row + i, 0, f"  {marker}  {item}",
-                              attr | color)
+                stdscr.addstr(row + i, 0, f"  {marker}  {item}", attr | color)
             except curses.error:
                 pass
 
         count = sum(selected)
         try:
-            stdscr.addstr(row + len(items) + 1, 0,
-                          f"  {count}/{len(items)} selected",
-                          curses.color_pair(3))
+            stdscr.addstr(
+                row + len(items) + 1,
+                0,
+                f"  {count}/{len(items)} selected",
+                curses.color_pair(3),
+            )
         except curses.error:
             pass
 

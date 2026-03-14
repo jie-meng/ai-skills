@@ -48,7 +48,7 @@ The setup script syncs skills from this repository to your AI assistant's user-l
 Run without arguments to launch the interactive installer:
 
 ```bash
-python3 scripts/setup_skills.py
+python3 scripts/skills-setup.py
 ```
 
 The installer guides you through two selection screens:
@@ -80,9 +80,9 @@ Tools that are not installed on your machine are shown dimmed with `[-]` markers
 Specify the target directory name to skip tool selection (skill selection still appears):
 
 ```bash
-python3 scripts/setup_skills.py .copilot   # Github Copilot
-python3 scripts/setup_skills.py .claude    # Claude Code
-python3 scripts/setup_skills.py .cursor    # Cursor
+python3 scripts/skills-setup.py .copilot   # Github Copilot
+python3 scripts/skills-setup.py .claude    # Claude Code
+python3 scripts/skills-setup.py .cursor    # Cursor
 ```
 
 ### Supported tools and skills paths
@@ -106,7 +106,7 @@ All config directories are relative to the user home directory (`~` on macOS/Lin
 To remove previously installed skills from your AI tool directories:
 
 ```bash
-python3 scripts/cleanup_skills.py
+python3 scripts/skills-cleanup.py
 ```
 
 The cleanup script guides you through two screens:

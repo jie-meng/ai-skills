@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Setup Skills - Interactive installer for AI assistant skill directories.
+"""Skills Setup - Interactive installer for AI assistant skill directories.
 
 Provides a curses-based multi-select UI for choosing which skills to install.
 Supports macOS, Linux, and Windows (auto-installs windows-curses if needed).
 
 Usage:
-    python3 scripts/setup_skills.py            # Interactive mode
-    python3 scripts/setup_skills.py .cursor    # Direct target mode
+    python3 scripts/skills-setup.py            # Interactive mode
+    python3 scripts/skills-setup.py .cursor    # Direct target mode
 """
 
 from __future__ import annotations
@@ -46,6 +46,7 @@ def _enable_windows_ansi() -> None:
         return
     try:
         import ctypes
+
         kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
         # STD_OUTPUT_HANDLE = -11, ENABLE_VIRTUAL_TERMINAL_PROCESSING = 4
         handle = kernel32.GetStdHandle(-11)
@@ -68,8 +69,10 @@ def _ensure_curses() -> None:
                 stdout=subprocess.DEVNULL,
             )
         else:
-            print("Error: curses module not available. "
-                  "Please install Python with curses support.")
+            print(
+                "Error: curses module not available. "
+                "Please install Python with curses support."
+            )
             sys.exit(1)
 
 
@@ -93,19 +96,18 @@ NC = "\033[0m"
 def validate_source() -> None:
     """Ensure the source skills directory exists and is non-empty."""
     if not SOURCE_SKILLS_DIR.is_dir():
-        print(f"{RED}Error: Source skills directory not found: "
-              f"{SOURCE_SKILLS_DIR}{NC}")
+        print(f"{RED}Error: Source skills directory not found: {SOURCE_SKILLS_DIR}{NC}")
         sys.exit(1)
     if not any(SOURCE_SKILLS_DIR.iterdir()):
-        print(f"{RED}Error: Source skills directory is empty: "
-              f"{SOURCE_SKILLS_DIR}{NC}")
+        print(f"{RED}Error: Source skills directory is empty: {SOURCE_SKILLS_DIR}{NC}")
         sys.exit(1)
 
 
 def get_skill_dirs() -> list[Path]:
     """Return sorted list of skill directories."""
     return sorted(
-        p for p in SOURCE_SKILLS_DIR.iterdir()
+        p
+        for p in SOURCE_SKILLS_DIR.iterdir()
         if p.is_dir() and not p.name.startswith(".")
     )
 
@@ -132,8 +134,10 @@ def sync_skills(
     target_skills_dir = config_path / skills_subpath
 
     if not config_path.is_dir():
-        print(f"{YELLOW}⚠ {label} is not installed "
-              f"(~/{config_dir} not found), skipping.{NC}")
+        print(
+            f"{YELLOW}⚠ {label} is not installed "
+            f"(~/{config_dir} not found), skipping.{NC}"
+        )
         return False
 
     target_skills_dir.mkdir(parents=True, exist_ok=True)
@@ -213,26 +217,24 @@ def curses_multi_select(
     def draw() -> None:
         stdscr.clear()
         stdscr.addstr(0, 0, title, curses.A_BOLD)
-        hint = ("Up/Down move | Space toggle | "
-                "a all/none | Enter confirm | q quit")
+        hint = "Up/Down move | Space toggle | a all/none | Enter confirm | q quit"
         stdscr.addstr(1, 0, hint, curses.color_pair(3))
 
         row = 3
-        enabled_sel = [s for i, s in enumerate(selected)
-                       if i not in disabled]
+        enabled_sel = [s for i, s in enumerate(selected) if i not in disabled]
         all_selected = bool(enabled_sel) and all(enabled_sel)
         marker = "[x]" if all_selected else "[ ]"
         attr = curses.A_REVERSE if cursor == 0 else 0
         try:
-            stdscr.addstr(row, 0, f"  {marker}  {all_item}",
-                          attr | curses.color_pair(1))
+            stdscr.addstr(
+                row, 0, f"  {marker}  {all_item}", attr | curses.color_pair(1)
+            )
         except curses.error:
             pass
 
         row += 1
         try:
-            stdscr.addstr(row, 0, "  " + "-" * 36,
-                          curses.color_pair(1))
+            stdscr.addstr(row, 0, "  " + "-" * 36, curses.color_pair(1))
         except curses.error:
             pass
 
@@ -248,17 +250,18 @@ def curses_multi_select(
                 attr = curses.A_REVERSE if cursor == i + 1 else 0
                 color = curses.color_pair(2) if selected[i] else 0
             try:
-                stdscr.addstr(row + i, 0, f"  {marker}  {item}",
-                              attr | color)
+                stdscr.addstr(row + i, 0, f"  {marker}  {item}", attr | color)
             except curses.error:
                 pass
 
-        count = sum(1 for i, s in enumerate(selected)
-                    if s and i not in disabled)
+        count = sum(1 for i, s in enumerate(selected) if s and i not in disabled)
         try:
-            stdscr.addstr(row + len(items) + 1, 0,
-                          f"  {count}/{enabled_count} selected",
-                          curses.color_pair(3))
+            stdscr.addstr(
+                row + len(items) + 1,
+                0,
+                f"  {count}/{enabled_count} selected",
+                curses.color_pair(3),
+            )
         except curses.error:
             pass
 
@@ -274,26 +277,21 @@ def curses_multi_select(
             cursor = _next_enabled(cursor, 1)
         elif key == ord(" "):
             if cursor == 0:
-                enabled_sel = [s for i, s in enumerate(selected)
-                               if i not in disabled]
+                enabled_sel = [s for i, s in enumerate(selected) if i not in disabled]
                 new_val = not (bool(enabled_sel) and all(enabled_sel))
                 selected = [
-                    new_val if i not in disabled else False
-                    for i in range(len(items))
+                    new_val if i not in disabled else False for i in range(len(items))
                 ]
             elif cursor - 1 not in disabled:
                 selected[cursor - 1] = not selected[cursor - 1]
         elif key == ord("a"):
-            enabled_sel = [s for i, s in enumerate(selected)
-                           if i not in disabled]
+            enabled_sel = [s for i, s in enumerate(selected) if i not in disabled]
             new_val = not (bool(enabled_sel) and all(enabled_sel))
             selected = [
-                new_val if i not in disabled else False
-                for i in range(len(items))
+                new_val if i not in disabled else False for i in range(len(items))
             ]
         elif key in (curses.KEY_ENTER, 10, 13):
-            return [i for i, s in enumerate(selected)
-                    if s and i not in disabled]
+            return [i for i, s in enumerate(selected) if s and i not in disabled]
         elif key in (ord("q"), 27):
             return None
 
@@ -342,8 +340,10 @@ def direct_target_mode(target_dir: str) -> None:
     """Install selected skills to a specific target directory."""
     target_path = Path.home() / target_dir
     if not target_path.is_dir():
-        print(f"{RED}Error: ~/{target_dir} not found. "
-              f"The tool does not appear to be installed.{NC}")
+        print(
+            f"{RED}Error: ~/{target_dir} not found. "
+            f"The tool does not appear to be installed.{NC}"
+        )
         sys.exit(1)
 
     skill_dirs = get_skill_dirs()
@@ -405,8 +405,10 @@ def interactive_mode() -> None:
             skipped += 1
         print()
 
-    print(f"{BOLD}Done.{NC} Installed: {GREEN}{installed}{NC}, "
-          f"Skipped: {YELLOW}{skipped}{NC}")
+    print(
+        f"{BOLD}Done.{NC} Installed: {GREEN}{installed}{NC}, "
+        f"Skipped: {YELLOW}{skipped}{NC}"
+    )
 
 
 def main() -> None:

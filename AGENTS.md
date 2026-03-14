@@ -16,13 +16,13 @@ Tech Stack:
 
 Both scripts use Python `curses` for interactive multi-select UIs. They support macOS, Linux, and Windows (auto-install `windows-curses` on Windows if needed).
 
-### Setup: `scripts/setup_skills.py`
+### Setup: `scripts/skills-setup.py`
 
 Syncs selected skills from `./skills/` to your AI assistant's user-level configuration directory.
 
 ```bash
-python3 scripts/setup_skills.py              # Interactive: select tools, then skills
-python3 scripts/setup_skills.py .cursor      # Direct target: skip tool selection
+python3 scripts/skills-setup.py              # Interactive: select tools, then skills
+python3 scripts/skills-setup.py .cursor      # Direct target: skip tool selection
 ```
 
 Interactive mode launches two multi-select screens:
@@ -31,12 +31,12 @@ Interactive mode launches two multi-select screens:
 
 Controls: Up/Down move, Space toggle, `a` all/none, Enter confirm, `q` quit.
 
-### Cleanup: `scripts/cleanup_skills.py`
+### Cleanup: `scripts/skills-cleanup.py`
 
 Scans AI tool config directories for installed skills and lets you selectively remove them.
 
 ```bash
-python3 scripts/cleanup_skills.py
+python3 scripts/skills-cleanup.py
 ```
 
 Launches two screens:
