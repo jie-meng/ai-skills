@@ -1,12 +1,15 @@
 ---
-name: code-review-pr
+name: github-code-review-pr
 description: >
   Comprehensive structured code review for GitHub Pull Requests with deep repository context awareness.
-  GitHub ONLY — does NOT support GitLab, Gitee, Bitbucket, or other platforms.
+  GitHub ONLY (including GitHub Enterprise) — does NOT support GitLab, Gitee, Bitbucket, or other platforms.
   Trigger when user requests: 'review PR', 'review this PR', 'PR review', 'PR CR', '审查PR', '看这个PR',
-  'review pull request', 'help me review', or provides a GitHub PR URL and asks for review.
-  Fetches PR metadata, diff, full file contents of modified files, project structure, and coding
-  conventions to deliver high-quality, context-aware reviews. Requires GitHub CLI (`gh`).
+  'review pull request', 'help me review', or provides a PR URL and asks for review.
+  When triggered, reject known non-GitHub platforms (GitLab, Gitee, Bitbucket) immediately; for unknown
+  domains, proceed optimistically since GitHub Enterprise domains can be anything — let `gh` CLI determine
+  whether the host is a valid GitHub instance. Fetches PR metadata, diff, full file contents of modified
+  files, project structure, and coding conventions to deliver high-quality, context-aware reviews.
+  Requires GitHub CLI (`gh`).
 license: Apache-2.0
 ---
 
@@ -18,7 +21,7 @@ license: Apache-2.0
 - "review https://github.com/owner/repo/pull/123"
 - User provides a PR URL or PR number and asks for review/feedback
 - "help me review this pull request"
-- "use code-review-pr skill"
+- "use github-code-review-pr skill"
 
 **This skill reviews remote GitHub PRs (not local staged changes).**
 For local staged changes, use `code-review-staged` instead.
@@ -28,7 +31,7 @@ For local staged changes, use `code-review-staged` instead.
 # Requirements
 
 - **GitHub CLI (`gh`)** must be installed and authenticated
-- Run `skills-check code-review-pr` to verify dependencies
+- Run `skills-check github-code-review-pr` to verify dependencies
 
 # Requirements for Outputs
 
@@ -54,18 +57,20 @@ The skill executes these steps:
 
 Accept PR input in any of these formats:
 - Full URL: `https://github.com/owner/repo/pull/123`
-- GitHub Enterprise URL: `https://github-host/owner/repo/pull/123`
+- GitHub Enterprise URL: `https://git.mycompany.com/owner/repo/pull/123` (domain can be anything — GHE domains vary widely)
 - PR number (when inside a repo): `123`
 - PR number with repo: `owner/repo#123`
 
 **Platform validation (do this FIRST if a URL is provided):**
-If the URL contains any of these non-GitHub hosts, **stop immediately** and inform the user that this skill only supports GitHub PRs:
-- `gitlab.com` or any `gitlab.*` domain
-- `gitee.com`
-- `bitbucket.org`
-- Any other non-GitHub git hosting platform
 
-Tell the user: this skill relies on `gh` CLI and only works with GitHub. Suggest they review the PR manually or use platform-specific tools.
+1. **Quick reject known non-GitHub platforms:** If the URL host matches any of these, **stop immediately** and inform the user:
+   - `gitlab.com` or any `gitlab.*` domain
+   - `gitee.com`
+   - `bitbucket.org`
+
+2. **For all other URLs (including unknown domains):** Do NOT reject based on the domain name alone. GitHub Enterprise (GHE) domains can be anything — `git.mycompany.com`, `github.corp.example.com`, `code.company.io`, etc. There is no reliable way to tell from the URL alone whether a host is GitHub.
+
+   Instead, **proceed optimistically** — attempt the `gh` commands in Step 2. The `gh` CLI only works with GitHub (github.com and authenticated GHE instances). If `gh pr view` fails with an authentication or host error, report that the host may not be a GitHub instance (or the user needs to run `gh auth login --hostname <host>` for GHE) and stop.
 
 Extract: **owner**, **repo**, **PR number**, and optionally **hostname** (for GHE).
 
@@ -311,9 +316,10 @@ After the review is complete:
 
 ## Error Handling
 
-- **Non-GitHub platform**: If user provides a GitLab, Gitee, Bitbucket, or other non-GitHub URL, stop immediately and inform the user this skill only supports GitHub PRs. Do NOT attempt to run `gh` commands against non-GitHub URLs.
-- **`gh` not installed**: Report error and suggest running `skills-check code-review-pr`
-- **`gh` not authenticated**: Report error and suggest `gh auth login`
+- **Known non-GitHub platform**: If URL matches GitLab, Gitee, or Bitbucket, stop immediately and inform the user this skill only supports GitHub PRs.
+- **Unknown host / GHE auth failure**: If `gh pr view` fails with a host or auth error on an unknown domain, inform the user that the host may not be GitHub, or they need to authenticate with `gh auth login --hostname <host>` for GitHub Enterprise.
+- **`gh` not installed**: Report error and suggest running `skills-check github-code-review-pr`
+- **`gh` not authenticated**: Report error and suggest `gh auth login` (or `gh auth login --hostname <host>` for GHE)
 - **PR not found**: Verify URL/number and repo access
 - **Clone failure**: If partial clone fails (e.g., private repo without access), fall back to reviewing with diff-only context and report the limitation
 - **Large PR (>50 files)**: Warn the user that review may be less thorough; focus on the most critical files

@@ -1,4 +1,4 @@
-# code-review-pr
+# github-code-review-pr
 
 Context-aware code review for GitHub Pull Requests. Uses partial clone and sparse checkout to gather deep repository context without downloading the entire repo.
 
@@ -141,7 +141,7 @@ The skill gathers context at three levels:
 
 - **GitHub CLI (`gh`)** — installed and authenticated
 - **Git 2.25+** — for sparse-checkout support (most systems have this)
-- Run `skills-check code-review-pr` to verify
+- Run `skills-check github-code-review-pr` to verify
 
 ## Usage Examples
 

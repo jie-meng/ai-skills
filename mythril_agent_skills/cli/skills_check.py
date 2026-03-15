@@ -77,7 +77,7 @@ DIM = "\033[2m"
 NC = "\033[0m"
 
 SKILL_GH_OPERATIONS = "gh-operations"
-SKILL_CODE_REVIEW_PR = "code-review-pr"
+SKILL_CODE_REVIEW_PR = "github-code-review-pr"
 SKILL_JIRA = "jira"
 SKILL_CONFLUENCE = "confluence"
 SKILL_FIGMA = "figma"

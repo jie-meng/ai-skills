@@ -1,19 +1,33 @@
 ---
 name: code-review-staged
-description: "Context-aware code review for git STAGED changes (git diff --cached). Triggers on: 'review staged', '审查暂存', 'staged code review', 'staged CR', '暂存区审查', 'review cached'. Reads related files (headers, definitions, tests) to validate changes in context. Auto-generates and copies commit message to clipboard. ONLY reviews staged changes, NOT unstaged or all changes."
+description: |
+  Context-aware code review for git STAGED changes (git diff --cached).
+  Triggers when user mentions "暂存" (staged) with any review verb: 审查/评审/看/检查.
+  Examples: '审查暂存', '评审暂存', '看看暂存', '看一下暂存', '检查暂存', '暂存区审查',
+  '看一下暂存代码', '看看暂存的代码', '审查暂存代码', '检查暂存代码'.
+  English triggers: 'review staged', 'staged code review', 'check staged', 'look at staged',
+  'look at staged code', 'review staged code'.
+  Reads related files to validate changes in context. Auto-generates and copies commit message.
+  ONLY reviews staged changes, NOT unstaged or all changes.
 license: Apache-2.0
 ---
 
 # When to Use This Skill
 
 **ALWAYS invoke this skill when user wants to review STAGED git changes:**
-- "review staged changes" / "review staged" / "staged code review"
-- "审查暂存区" / "暂存区代码审查" / "审查暂存的代码"
-- "staged CR" / "review cached changes"
-- "review my staged code" / "check staged changes"
+
+Chinese (关键词"暂存" + 动词: 审查/评审/看/检查):
+- "审查暂存" / "审查暂存区" / "审查暂存的代码" / "暂存区审查" / "暂存区代码审查"
+- "评审暂存" / "评审暂存区"
+- "看看暂存" / "看一下暂存" / "看看暂存区" / "看一下暂存区"
+- "检查暂存" / "检查暂存区"
+
+English:
+- "review staged" / "review staged changes" / "staged code review" / "staged CR"
+- "check staged" / "look at staged" / "review cached changes"
 
 **This skill is specifically for STAGED changes (git diff --cached).**
-For remote GitHub PRs, use `code-review-pr` instead.
+For remote GitHub PRs, use `github-code-review-pr` instead.
 
 # Requirements
 
