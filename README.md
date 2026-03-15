@@ -226,6 +226,7 @@ mythril_agent_skills/skills/skill-name/
    description: |
       What this skill does and when to use it.
      Include trigger keywords for better AI assistant activation.
+   license: Apache-2.0
    ---
 
    # My Skill

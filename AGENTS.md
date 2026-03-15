@@ -134,6 +134,7 @@ description: |
   Multi-line description explaining when to use this skill.
   Include trigger keywords and use cases.
   Be specific — mention concrete contexts and phrases that should activate the skill.
+license: Apache-2.0
 ---
 
 # Skill Name
