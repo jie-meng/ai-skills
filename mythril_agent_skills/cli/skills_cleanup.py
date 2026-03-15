@@ -365,12 +365,12 @@ def delete_selected(groups: list[ToolGroup]) -> None:
                 total_deleted += 1
 
         if deleted_names:
-            print(f"{RED}✗ [{group.label}] Removed:{NC} {' '.join(deleted_names)}")
+            print(f"{GREEN}✓ [{group.label}] Removed:{NC} {' '.join(deleted_names)}")
 
     if total_deleted == 0:
         print("No skills were removed.")
     else:
-        print(f"\n{BOLD}Done.{NC} Removed {RED}{total_deleted}{NC} skill(s) total.")
+        print(f"\n{BOLD}Done.{NC} Removed {GREEN}{total_deleted}{NC} skill(s) total.")
 
 
 # --- Main ---
