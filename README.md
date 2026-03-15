@@ -248,16 +248,7 @@ mythril_agent_skills/skills/skill-name/
    git commit -m "[my-skill] Add initial skill with core workflows"
    ```
 
-### Publishing to PyPI
-
-```bash
-python3 scripts/publish.py          # Publish to PyPI
-python3 scripts/publish.py --test   # Publish to TestPyPI first
-```
-
-For the full publishing workflow, version management, and pre-release testing steps, see **[docs/PUBLISHING.md](./docs/PUBLISHING.md)**.
-
-For full development guidelines, see **[AGENTS.md](./AGENTS.md)**.
+For full development guidelines and publishing instructions, see **[AGENTS.md](./AGENTS.md)** and **[docs/PUBLISHING.md](./docs/PUBLISHING.md)**.
 
 ---
 
