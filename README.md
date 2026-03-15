@@ -13,10 +13,10 @@ A skill is a prompt/instruction bundle that teaches an AI assistant how to handl
 | Skill | Description | Use When |
 |---|---|---|
 | [Skill Creator](./mythril_agent_skills/skills/skill-creator/) | Create skills/prompts for any AI platform. Includes drafting, test case generation, evaluation, benchmarking, description optimization. | Create a new skill, improve triggering, or benchmark skill performance |
-| [Jira](./mythril_agent_skills/skills/jira/) | Use Jira REST API (via bundled Python script) for issue, sprint, and board workflows. No CLI tools needed. | "jira issue", "jira card", "PROJ-123", or sprint/board requests |
+| [Jira](./mythril_agent_skills/skills/jira/) | Use Jira REST API (via bundled Python script) for issue, sprint, and board workflows. No CLI tools needed. | "jira issue", "jira card", "jira ticket", issue key (PROJ-123), or Jira URL |
 | [Figma](./mythril_agent_skills/skills/figma/) | Extract design specs from Figma files for implementation. Covers layout, colors, typography, component specs, auto-triggering on Figma links. | Implementing a design from Figma, inspecting colors/spacing, or matching components |
 | [GH Operations](./mythril_agent_skills/skills/gh-operations/) | Use GitHub CLI (`gh`) for issue and pull-request workflows: read/write issues, inspect PRs, create PRs, and read commits. | "use gh", "gh issue", "gh pr", or commit lookup requests |
-| [Code Review (Staged)](./mythril_agent_skills/skills/code-review-staged/) | Context-aware code review for Git staged changes. Reads related files for validation, auto-generates and copies commit message to clipboard. | "审查暂存", "看看暂存", "看一下暂存代码", "检查暂存代码", or "review staged" |
+| [Code Review (Staged)](./mythril_agent_skills/skills/code-review-staged/) | Context-aware code review for Git staged changes. Reads related files for validation, auto-generates and copies commit message to clipboard. | "review staged", "staged code review", "check staged", "look at staged", or "review staged code" |
 | [Code Review (PR)](./mythril_agent_skills/skills/github-code-review-pr/) | Context-aware code review for Pull Requests via `gh` CLI. Supports github.com and GitHub Enterprise (any domain). Uses partial clone and sparse checkout for deep repo context. | "review PR", "PR review", any URL containing `/pull/` with a review request |
 
 ---
