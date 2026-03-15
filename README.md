@@ -34,6 +34,12 @@ Install the package from PyPI — no need to clone the repository:
 pip install mythril-agent-skills
 ```
 
+To upgrade to the latest version:
+
+```bash
+pip install -U mythril-agent-skills
+```
+
 This gives you four commands:
 
 | Command | Description |
