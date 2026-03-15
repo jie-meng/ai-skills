@@ -17,7 +17,7 @@ A skill is a prompt/instruction bundle that teaches an AI assistant how to handl
 | [Figma](./mythril_agent_skills/skills/figma/) | Extract design specs from Figma files for implementation. Covers layout, colors, typography, component specs, auto-triggering on Figma links. | Implementing a design from Figma, inspecting colors/spacing, or matching components |
 | [GH Operations](./mythril_agent_skills/skills/gh-operations/) | Use GitHub CLI (`gh`) for issue and pull-request workflows: read/write issues, inspect PRs, create PRs, and read commits. | "use gh", "gh issue", "gh pr", or commit lookup requests |
 | [Code Review (Staged)](./mythril_agent_skills/skills/code-review-staged/) | Context-aware code review for Git staged changes. Reads related files for validation, auto-generates and copies commit message to clipboard. | "审查暂存", "看看暂存", "看一下暂存代码", "检查暂存代码", or "review staged" |
-| [Code Review (PR)](./mythril_agent_skills/skills/github-code-review-pr/) | Context-aware code review for GitHub Pull Requests (including GitHub Enterprise). Uses partial clone and sparse checkout for deep repo context. | "review PR", "PR review", or reviewing a GitHub PR URL |
+| [Code Review (PR)](./mythril_agent_skills/skills/github-code-review-pr/) | Context-aware code review for Pull Requests via `gh` CLI. Supports github.com and GitHub Enterprise (any domain). Uses partial clone and sparse checkout for deep repo context. | "review PR", "PR review", any URL containing `/pull/` with a review request |
 
 ---
 
@@ -34,13 +34,14 @@ Install the package from PyPI — no need to clone the repository:
 pip install mythril-agent-skills
 ```
 
-This gives you three commands:
+This gives you four commands:
 
 | Command | Description |
 |---|---|
 | `skills-setup` | Interactive installer — select AI tools and skills to install |
 | `skills-cleanup` | Interactive remover — select installed skills to remove |
 | `skills-check` | Dependency checker — verify and configure required CLI tools and API keys |
+| `skills-clean-cache` | Cache cleaner — remove temp files created by skills at runtime |
 
 **Install skills:**
 
@@ -60,6 +61,13 @@ skills-cleanup
 ```bash
 skills-check                    # Interactive: select skills to check
 skills-check gh-operations jira figma  # Check specific skills
+```
+
+**Clean up cached temp files:**
+
+```bash
+skills-clean-cache          # Interactive: list cache, confirm before deleting
+skills-clean-cache --force  # Delete without confirmation
 ```
 
 The checker will:

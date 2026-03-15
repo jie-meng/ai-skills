@@ -1,32 +1,33 @@
 ---
 name: github-code-review-pr
 description: >
-  Comprehensive structured code review for GitHub Pull Requests with deep repository context awareness.
-  GitHub ONLY (including GitHub Enterprise) — does NOT support GitLab, Gitee, Bitbucket, or other platforms.
-  Trigger when user requests: 'review PR', 'review this PR', 'PR review', 'PR CR', '审查PR', '看这个PR',
-  'review pull request', 'help me review', or provides a PR URL and asks for review.
-  When triggered, reject known non-GitHub platforms (GitLab, Gitee, Bitbucket) immediately; for unknown
-  domains, proceed optimistically since GitHub Enterprise domains can be anything — let `gh` CLI determine
-  whether the host is a valid GitHub instance. Fetches PR metadata, diff, full file contents of modified
-  files, project structure, and coding conventions to deliver high-quality, context-aware reviews.
-  Requires GitHub CLI (`gh`).
+  Comprehensive structured code review for Pull Requests via GitHub CLI (`gh`).
+  TRIGGER THIS SKILL whenever the user asks to review a PR — regardless of the URL domain.
+  Trigger phrases: 'review PR', 'review this PR', 'PR review', 'PR CR', '审查PR', '看这个PR',
+  'review pull request', 'help me review', or ANY URL containing '/pull/' with a review request.
+  This skill handles github.com AND GitHub Enterprise (any domain: git.company.com, code.org.io, etc.).
+  IMPORTANT: Do NOT guess whether a URL is GitHub or GitLab based on domain name alone — always trigger
+  this skill first and let `gh` CLI determine the platform. Only reject URLs whose host literally contains
+  'gitlab', 'gitee.com', or 'bitbucket.org'.
 license: Apache-2.0
 ---
 
 # When to Use This Skill
 
-**ALWAYS invoke this skill when user wants to review a GitHub Pull Request:**
+**ALWAYS invoke this skill when user wants to review a Pull Request:**
 - "review this PR" / "review PR" / "PR review" / "PR code review"
 - "审查这个PR" / "帮我看这个PR" / "PR审查" / "review pull request"
 - "review https://github.com/owner/repo/pull/123"
-- User provides a PR URL or PR number and asks for review/feedback
+- "帮我看一下这个 PR https://git.company.com/org/repo/pull/456"
+- User provides ANY URL containing `/pull/` and asks for review/feedback
+- User provides a PR number and asks for review/feedback
 - "help me review this pull request"
 - "use github-code-review-pr skill"
 
-**This skill reviews remote GitHub PRs (not local staged changes).**
-For local staged changes, use `code-review-staged` instead.
+**CRITICAL**: Do NOT pre-filter by URL domain. GitHub Enterprise domains can be anything — `git.company.com`, `github.corp.example.com`, `code.org.io`, etc. If the URL contains `/pull/`, trigger this skill and let `gh` CLI sort out platform compatibility.
 
-**GitHub ONLY.** This skill does NOT support GitLab, Gitee, Bitbucket, or other git hosting platforms. If the user provides a non-GitHub URL, inform them immediately and stop.
+**This skill reviews remote PRs via `gh` CLI (not local staged changes).**
+For local staged changes, use `code-review-staged` instead.
 
 # Requirements
 
@@ -53,26 +54,23 @@ For local staged changes, use `code-review-staged` instead.
 
 The skill executes these steps:
 
-## Step 1: Parse PR Reference and Validate Platform
+## Step 1: Parse PR Reference — Proceed Optimistically
 
 Accept PR input in any of these formats:
 - Full URL: `https://github.com/owner/repo/pull/123`
-- GitHub Enterprise URL: `https://git.mycompany.com/owner/repo/pull/123` (domain can be anything — GHE domains vary widely)
+- GitHub Enterprise URL: `https://git.mycompany.com/owner/repo/pull/123` (domain can be literally anything)
 - PR number (when inside a repo): `123`
 - PR number with repo: `owner/repo#123`
 
-**Platform validation (do this FIRST if a URL is provided):**
+**Platform handling:**
 
-1. **Quick reject known non-GitHub platforms:** If the URL host matches any of these, **stop immediately** and inform the user:
-   - `gitlab.com` or any `gitlab.*` domain
-   - `gitee.com`
-   - `bitbucket.org`
+1. **Only reject URLs whose host literally contains `gitlab`, or exactly matches `gitee.com` or `bitbucket.org`.** These are the only platforms we can confidently identify as non-GitHub from the URL alone.
 
-2. **For all other URLs (including unknown domains):** Do NOT reject based on the domain name alone. GitHub Enterprise (GHE) domains can be anything — `git.mycompany.com`, `github.corp.example.com`, `code.company.io`, etc. There is no reliable way to tell from the URL alone whether a host is GitHub.
+2. **For ALL other URLs — proceed immediately.** Do NOT try to guess the platform from the domain name. GitHub Enterprise (GHE) domains are completely arbitrary: `git.realestate.com.au`, `git.mycompany.com`, `github.corp.example.com`, `code.company.io`, etc. There is no way to distinguish GHE from other platforms by URL alone.
 
-   Instead, **proceed optimistically** — attempt the `gh` commands in Step 2. The `gh` CLI only works with GitHub (github.com and authenticated GHE instances). If `gh pr view` fails with an authentication or host error, report that the host may not be a GitHub instance (or the user needs to run `gh auth login --hostname <host>` for GHE) and stop.
+3. **Let `gh` CLI be the judge.** Attempt the `gh` commands in Step 2. If the host is not a GitHub instance or the user hasn't authenticated, `gh` will return a clear error — handle it then (see Error Handling).
 
-Extract: **owner**, **repo**, **PR number**, and optionally **hostname** (for GHE).
+Extract: **owner**, **repo**, **PR number**, and **hostname** (for any non-`github.com` domain).
 
 ## Step 2: Fetch PR Metadata and Diff
 
@@ -118,10 +116,14 @@ git checkout "$ORIGINAL_BRANCH"
 
 Use **partial clone + sparse checkout** to avoid downloading the entire repo. This downloads only git metadata (commits and tree objects) on clone — **file contents are NOT downloaded until explicitly checked out**. Even for a multi-GB monorepo, the initial clone is typically just a few MB.
 
+Create a temp directory under the **unified skill cache** so `skills-clean-cache` can find and remove all leftovers:
+
 ```bash
-TMPDIR=$(mktemp -d)
-gh repo clone <owner/repo> "$TMPDIR" -- --filter=blob:none --depth=1 --single-branch --sparse
-cd "$TMPDIR"
+CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr"
+mkdir -p "$CACHE_DIR"
+REVIEW_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
+gh repo clone <owner/repo> "$REVIEW_DIR" -- --filter=blob:none --depth=1 --single-branch --sparse
+cd "$REVIEW_DIR"
 ```
 
 Now the repo is cloned but the working directory is nearly empty (only root-level files). Next, selectively populate **only the files we need** using sparse-checkout:
@@ -154,9 +156,9 @@ Now checkout the PR branch to get the PR's version of those files:
 gh pr checkout <PR_NUMBER>
 ```
 
-After review, clean up:
+After review, clean up (see Step 7):
 ```bash
-rm -rf "$TMPDIR"
+rm -rf "$REVIEW_DIR"
 ```
 
 **Size comparison for a large repo (e.g., 50K files, 2GB full clone):**
@@ -310,16 +312,26 @@ Structure the review into these sections:
 
 ## Step 7: Clean Up
 
+**This step is MANDATORY — always execute it, even if the review encountered errors.**
+
 After the review is complete:
-- **Path B** (partial clone): Delete the temporary directory: `rm -rf "$TMPDIR"`
+- **Path B** (partial clone): Delete the review directory: `rm -rf "$REVIEW_DIR"`
 - **Path A** (existing repo): Restore the original branch: `git checkout "$ORIGINAL_BRANCH"`
+
+All temp directories live under `${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr/`. If leftovers accumulate (e.g., from interrupted sessions), the user can run:
+```bash
+skills-clean-cache
+```
 
 ## Error Handling
 
-- **Known non-GitHub platform**: If URL matches GitLab, Gitee, or Bitbucket, stop immediately and inform the user this skill only supports GitHub PRs.
-- **Unknown host / GHE auth failure**: If `gh pr view` fails with a host or auth error on an unknown domain, inform the user that the host may not be GitHub, or they need to authenticate with `gh auth login --hostname <host>` for GitHub Enterprise.
+- **Known non-GitHub platform**: Only if URL host literally contains `gitlab`, or exactly matches `gitee.com` or `bitbucket.org` — stop and inform the user.
+- **`gh` host/auth error on unknown domain**: This is the expected outcome when a non-github.com host hasn't been configured. Tell the user:
+  1. This host might be GitHub Enterprise — run `gh auth login --hostname <host>` to authenticate
+  2. If it's not GitHub at all, this skill only supports GitHub (including GHE)
+  - **Do NOT assume the host is "GitLab" or any other platform** — just report the `gh` error and let the user decide.
 - **`gh` not installed**: Report error and suggest running `skills-check github-code-review-pr`
-- **`gh` not authenticated**: Report error and suggest `gh auth login` (or `gh auth login --hostname <host>` for GHE)
+- **`gh` not authenticated for github.com**: Report error and suggest `gh auth login`
 - **PR not found**: Verify URL/number and repo access
 - **Clone failure**: If partial clone fails (e.g., private repo without access), fall back to reviewing with diff-only context and report the limitation
 - **Large PR (>50 files)**: Warn the user that review may be less thorough; focus on the most critical files
@@ -342,3 +354,8 @@ After the review is complete:
 **User input**: "Review PR #15"
 **Action**: Already in repo — just `gh pr checkout 15`, read context locally, review
 **Output**: Context-aware review, restore original branch when done
+
+### Example 4: GitHub Enterprise URL (unknown domain)
+**User input**: "帮我看一下这个 PR https://git.realestate.com.au/consumer-experience/app-ios/pull/16323"
+**Action**: Domain is NOT gitlab/gitee/bitbucket → proceed optimistically → run `gh pr view https://git.realestate.com.au/...` → if auth error, tell user to run `gh auth login --hostname git.realestate.com.au`
+**Output**: Either full review (if GHE is configured) or clear auth setup instructions

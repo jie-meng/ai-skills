@@ -2,6 +2,12 @@
 name: skill-creator
 description: Create new skills and prompts for any AI platform (Claude Code, Claude.ai, OpenAI, Cursor, Windsurf, etc.), modify and improve existing ones, and measure performance. Use when users want to create a skill or system prompt from scratch for any AI tool, update or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a Claude Code skill's description for better triggering accuracy.
 license: Apache-2.0
+original-source: https://github.com/anthropics/skills/tree/main/skills/skill-creator
+original-copyright: Copyright Anthropic, PBC
+modifications: |
+  - Extended description to cover multi-platform support (Claude.ai, OpenAI, Cursor, Windsurf, etc.)
+  - Added "Temporary Files and Downloads" section for unified cache directory convention
+  - Added license field to frontmatter
 ---
 
 # Skill Creator
@@ -122,6 +128,16 @@ cloud-deploy/
     └── azure.md
 ```
 Claude reads only the relevant reference file.
+
+#### Temporary Files and Downloads
+
+If the skill needs to download files, clone repos, or create temp artifacts at runtime, it MUST use the unified cache directory convention:
+
+```bash
+${TMPDIR:-/tmp}/mythril-skills-cache/<skill-name>/
+```
+
+Within this directory, skills can create random subdirectories freely (e.g., via `mktemp -d`). Skills do NOT need to implement their own cleanup — the `skills-clean-cache` CLI command handles bulk cleanup for all skills. This keeps temp files discoverable, prevents `/tmp` pollution, and supports parallel execution.
 
 #### Principle of Lack of Surprise
 

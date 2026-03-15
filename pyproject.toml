@@ -36,6 +36,7 @@ Issues = "https://github.com/jie-meng/mythril-agent-skills/issues"
 skills-setup = "mythril_agent_skills.cli.skills_setup:main"
 skills-cleanup = "mythril_agent_skills.cli.skills_cleanup:main"
 skills-check = "mythril_agent_skills.cli.skills_check:main"
+skills-clean-cache = "mythril_agent_skills.cli.skills_clean_cache:main"
 
 [tool.setuptools.packages.find]
 include = ["mythril_agent_skills*"]

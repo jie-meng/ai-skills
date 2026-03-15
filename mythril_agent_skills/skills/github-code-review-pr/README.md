@@ -143,11 +143,21 @@ The skill gathers context at three levels:
 - **Git 2.25+** — for sparse-checkout support (most systems have this)
 - Run `skills-check github-code-review-pr` to verify
 
+## Cleaning Up Temp Directories
+
+PR reviews that use Path B (partial clone) create temporary directories under `${TMPDIR}/mythril-skills-cache/github-code-review-pr/`. These are normally cleaned up after each review, but interrupted sessions may leave them behind. Use the shared cache cleaner:
+
+```bash
+skills-clean-cache          # interactive — lists cache contents, asks for confirmation
+skills-clean-cache --force  # delete without asking
+```
+
 ## Usage Examples
 
 ```
 "Review this PR: https://github.com/owner/repo/pull/42"
 "帮我审查一下这个 PR https://github.com/owner/repo/pull/42"
+"帮我看一下这个 PR https://git.company.com/org/repo/pull/456"
 "PR review #15"
 "review PR owner/repo#99"
 ```

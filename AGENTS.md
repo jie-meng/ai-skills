@@ -38,6 +38,7 @@ Installed via `pip install mythril-agent-skills` (or `pip install -e .` for deve
 | `skills-setup` | `mythril_agent_skills.cli.skills_setup:main` | Interactive installer |
 | `skills-cleanup` | `mythril_agent_skills.cli.skills_cleanup:main` | Interactive remover |
 | `skills-check` | `mythril_agent_skills.cli.skills_check:main` | Dependency checker |
+| `skills-clean-cache` | `mythril_agent_skills.cli.skills_clean_cache:main` | Cache directory cleaner |
 
 All CLI scripts use Python `curses` for interactive multi-select UIs. They support macOS, Linux, and Windows (auto-install `windows-curses` on Windows if needed).
 
@@ -81,6 +82,15 @@ Features:
 - Prompts for missing API keys and saves them to the shell config file
 - Verifies authentication status
 
+### Clean Cache: `skills-clean-cache`
+
+Removes temporary files created by skills at runtime (git clones for PR review, exported images, etc.). All skills store temp files under a unified cache directory: `${TMPDIR:-/tmp}/mythril-skills-cache/`.
+
+```bash
+skills-clean-cache          # Interactive: list cache contents, confirm before deleting
+skills-clean-cache --force  # Delete without confirmation
+```
+
 ### Backward-compatible wrappers
 
 The `scripts/` directory contains thin wrappers for running without `pip install`:
@@ -89,6 +99,7 @@ The `scripts/` directory contains thin wrappers for running without `pip install
 python3 scripts/skills-setup.py
 python3 scripts/skills-cleanup.py
 python3 scripts/skills-check.py gh-operations jira figma
+python3 scripts/skills-clean-cache.py
 ```
 
 ### Supported tools
@@ -156,6 +167,23 @@ Detailed instructions, examples, and workflows...
 - List example user phrases that should activate it
 - Mention what the skill does, not just what it is
 - Avoid vague descriptions — specificity improves triggering accuracy
+
+---
+
+## Temporary Files & Cache Convention
+
+Skills that need to download files, clone repos, or create temp artifacts at runtime MUST use the unified cache directory:
+
+```
+${TMPDIR:-/tmp}/mythril-skills-cache/<skill-name>/
+```
+
+- **Each skill gets its own subdirectory** named after the skill (e.g., `github-code-review-pr/`, `figma/`)
+- **Within the subdirectory, create random dirs freely** — e.g., `mktemp -d "${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr/XXXXXXXX"`
+- **Skills do NOT need to worry about cleanup** — the `skills-clean-cache` command handles it
+- **Never create temp files directly in `/tmp/`** or other ad-hoc locations
+
+This convention ensures `skills-clean-cache` can find and remove all skill-generated temp data in one pass.
 
 ---
 
