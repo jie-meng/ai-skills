@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mythril-agent-skills"
-version = "0.1.1"
+version = "0.1.2"
 description = "Reusable skills for AI coding assistants (Copilot, Claude Code, Cursor, Codex, Gemini CLI, and more)"
 readme = "README.md"
 license = {text = "Apache-2.0"}
