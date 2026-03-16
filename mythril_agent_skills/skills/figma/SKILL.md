@@ -3,10 +3,10 @@ name: figma
 description: >
   Fetch Figma design data from a URL and inject specs (layout, colors, typography,
   components) into context. Use when user shares a Figma link and asks to implement,
-  inspect, match, or code a design. Trigger on ANY message containing a figma.com
-  URL, or when the user asks about colors/spacing/fonts from a design, or says
-  "implement this design", "match this component", "what does the design look like",
-  "according to Figma", "from the design file".
+  inspect, or code a design. Trigger on ANY message containing a figma.com URL,
+  or when the user asks about colors/spacing/fonts from a design, or says
+  "implement this design", "what does the design look like", "according to Figma",
+  "from the design file".
 license: Apache-2.0
 ---
 
