@@ -7,7 +7,7 @@ description: |
   '看一下暂存代码', '看看暂存的代码', '审查暂存代码', '检查暂存代码'.
   English triggers: 'review staged', 'staged code review', 'check staged', 'look at staged',
   'look at staged code', 'review staged code'.
-  Reads related files to validate changes in context. Auto-generates and copies commit message.
+  Reads related files to validate changes in context. Auto-generates commit message.
   ONLY reviews staged changes, NOT unstaged or all changes.
 license: Apache-2.0
 ---
@@ -187,26 +187,12 @@ Structure the review into these sections:
 - If branch name doesn't contain a slash, use conventional format: `type: message`
 - Common types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
 
-## Step 5: Copy Commit Message to Clipboard
-
-After generating the review, extract the commit message from Section 5 and copy it to clipboard:
-
-```bash
-# macOS
-echo -n "commit message here" | pbcopy
-
-# Linux (if xclip available)
-echo -n "commit message here" | xclip -selection clipboard
-```
-
-If clipboard tools are unavailable, report the limitation but still display the commit message clearly for manual copying.
-
 ## Error Handling
 
 - **No staged changes**: Report that no staged changes found and suggest using `git add`
 - **Not a git repo**: Report and suggest navigating to a git repository
 - **Language detection failure**: Default to English review
-- **Clipboard failure**: Report error but STILL display the commit message prominently for manual copy
+- **Clipboard failure**: *(no longer applicable — clipboard copying removed)*
 - **Large diff (>50 files)**: Warn the user; focus on the most critical files
 
 ## Examples
@@ -214,11 +200,11 @@ If clipboard tools are unavailable, report the limitation but still display the 
 ### Example 1: Chinese Request
 **User input**: "审查暂存区的代码"
 **Branch**: `feat/audio-support`
-**Action**: Get staged diff → gather repo context locally → review in Chinese → copy commit message
-**Output**: Context-aware Chinese review with commit message copied to clipboard
+**Action**: Get staged diff → gather repo context locally → review in Chinese
+**Output**: Context-aware Chinese review with recommended commit message
 
 ### Example 2: English Request
 **User input**: "Review my staged changes"
 **Branch**: `fix/wifi-connection`
-**Action**: Get staged diff → gather repo context locally → review in English → copy commit message
-**Output**: Context-aware English review with commit message copied to clipboard
+**Action**: Get staged diff → gather repo context locally → review in English
+**Output**: Context-aware English review with recommended commit message
