@@ -29,7 +29,7 @@ A skill is a prompt/instruction bundle that teaches an AI assistant how to handl
 
 Choose the path that fits your needs:
 
-### Option A: Use skills (install via pip)
+### Option A: Use skills provided (install via pip)
 
 If you just want to install and use existing skills, start here.
 Install the package from PyPI — no need to clone the repository:
@@ -86,9 +86,16 @@ The checker will:
 - Prompt for missing API keys/tokens and save them to your shell config file
 - Verify authentication status (e.g. `gh auth status`)
 
-### Option B: GitHub Fork (stay linked to upstream)
+### Option B: Customize your own repo (GitHub fork or independent clone)
 
-If you want to maintain a fork on **github.com** that tracks upstream updates:
+If you want to customize skills and keep your own repository, you have two equivalent paths:
+
+- **GitHub fork** (stay linked to upstream on github.com)
+- **Independent clone** (fully detach from upstream, any platform)
+
+Pick one setup below, then follow the shared usage steps after it.
+
+**Setup A — GitHub fork (linked to upstream):**
 
 ```bash
 # Fork on GitHub, then clone your fork:
@@ -96,14 +103,7 @@ git clone https://github.com/<your-username>/mythril-agent-skills.git
 cd mythril-agent-skills
 ```
 
-Add your custom skills, then use GitHub's built-in **"Sync fork"** button anytime to pull upstream changes.
-
-- Works well when you **only add custom skills with unique names** — no conflicts
-- If you've **modified an upstream skill** (e.g., customized `jira`), you may get merge conflicts that need manual resolution
-
-### Option C: Independent clone (fully detach from upstream)
-
-If you want a **completely independent repository** — on any platform (GitHub, GitLab, Gitee, Bitbucket, etc.):
+**Setup B — Independent clone (detached from upstream, non-GitHub hosting):**
 
 ```bash
 # 1. Clone the original repo
@@ -123,6 +123,8 @@ The init script will:
 
 > **Warning**: This is a destructive, one-time operation. Run it on a fresh clone only.
 
+**Shared usage for both setups:**
+
 Run the scripts directly — no installation needed:
 
 ```bash
@@ -133,7 +135,8 @@ python3 scripts/skills-check.py       # Dependency checker
 
 **Stay up to date with upstream (optional):**
 
-Use the bundled sync script to selectively pull upstream skill updates:
+- **Setup A (GitHub fork)**: use GitHub's built-in **"Sync fork"** button
+- **Setup B (Independent clone)**: use the bundled sync script (below)
 
 ```bash
 python3 scripts/sync-upstream.py              # Interactive sync
@@ -152,6 +155,9 @@ Use `exclude_skills` in `.sync-upstream.json` only when you need to prevent an *
 ```
 
 For the full guide, see **[docs/FORK-SYNC.md](./docs/FORK-SYNC.md)**.
+
+- Works well when you **only add custom skills with unique names** — no conflicts
+- If you've **modified an upstream skill** (e.g., customized `jira`), you may get merge conflicts that need manual resolution
 
 ---
 
