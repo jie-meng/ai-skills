@@ -109,15 +109,7 @@ python3 scripts/skills-check.py       # Dependency checker
 
 **Stay up to date with upstream:**
 
-When you want to pull in the latest skills from the original repository without overwriting your custom work, use the sync script. Exclude your custom or modified skills in `.sync-upstream.json`:
-
-```json
-{
-  "exclude_skills": ["my-custom-skill", "jira"]
-}
-```
-
-Then sync anytime:
+When you want to pull in the latest skills from the original repository, use the sync script:
 
 ```bash
 python3 scripts/sync-upstream.py              # Interactive sync
@@ -125,7 +117,15 @@ python3 scripts/sync-upstream.py --dry-run     # Preview changes only
 python3 scripts/sync-upstream.py --force        # Apply without confirmation
 ```
 
-The sync script updates skills, CLI tools, docs, and even itself — while preserving your excluded custom skills.
+The sync script only processes skills that exist in upstream. **Your custom skills with unique names are never touched** — no configuration needed.
+
+Use `exclude_skills` in `.sync-upstream.json` only when you need to prevent an **upstream skill** from being overwritten (e.g., you've modified `jira` locally, or you want to protect a custom skill name in case upstream adds one with the same name in the future):
+
+```json
+{
+  "exclude_skills": ["jira"]
+}
+```
 
 For the full guide, see **[docs/FORK-SYNC.md](./docs/FORK-SYNC.md)**.
 

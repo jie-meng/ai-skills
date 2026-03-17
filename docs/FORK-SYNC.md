@@ -8,7 +8,7 @@ The main [mythril-agent-skills](https://github.com/jie-meng/mythril-agent-skills
 
 1. Fork the repository
 2. Add your own skills under `mythril_agent_skills/skills/`
-3. Use the sync script to pull upstream updates without overwriting your custom skills
+3. Use the sync script to pull upstream updates — your custom skills with unique names are automatically safe
 
 ## Quick Start
 
@@ -21,10 +21,8 @@ cd mythril-agent-skills
 mkdir mythril_agent_skills/skills/my-custom-skill
 # ... create SKILL.md, scripts, etc.
 
-# 3. Exclude your custom skills from future syncs
-#    Edit .sync-upstream.json and add your skill names to exclude_skills
-
-# 4. Sync upstream changes anytime
+# 3. Sync upstream changes anytime
+#    Custom skills with unique names are never touched — no config needed
 python3 scripts/sync-upstream.py
 ```
 
@@ -36,10 +34,7 @@ The sync behavior is controlled by **`.sync-upstream.json`** in the repository r
 {
   "upstream_repo": "https://github.com/jie-meng/mythril-agent-skills.git",
   "upstream_branch": "main",
-  "exclude_skills": [
-    "my-custom-skill",
-    "jira"
-  ]
+  "exclude_skills": ["jira"]
 }
 ```
 
@@ -49,7 +44,15 @@ The sync behavior is controlled by **`.sync-upstream.json`** in the repository r
 |---|---|---|
 | `upstream_repo` | `https://github.com/jie-meng/mythril-agent-skills.git` | Upstream git repository URL |
 | `upstream_branch` | `main` | Branch to sync from |
-| `exclude_skills` | `[]` | List of skill directory names to skip during sync |
+| `exclude_skills` | `[]` | Upstream skill names to skip during sync (see [When to use exclude_skills](#when-to-use-exclude_skills)) |
+
+### When to use `exclude_skills`
+
+The sync script only processes skills that **exist in upstream**. Custom skills with unique names (not present in upstream) are **never touched** — you don't need to add them to `exclude_skills`.
+
+Use `exclude_skills` when:
+- You've **modified an upstream skill** locally (e.g., customized `jira` for your organization) and want to prevent it from being overwritten
+- You want to **preemptively protect** a custom skill name in case upstream adds a skill with the same name in the future
 
 ## Usage
 
@@ -86,7 +89,7 @@ Applies changes without asking for confirmation. Useful in CI/CD pipelines.
 ```
 mythril-agent-skills upstream sync
 
-  Excluded skills: my-custom-skill, jira
+  Excluded skills: jira
   Added remote _mythril_upstream → https://github.com/jie-meng/mythril-agent-skills.git
   Fetching _mythril_upstream/main ...
   Extracting upstream content ...
@@ -138,8 +141,8 @@ The script syncs the following paths from upstream:
 
 1. Fork the repository on GitHub
 2. Clone your fork locally
-3. Add your custom skills
-4. Edit `.sync-upstream.json` to exclude your custom skills
+3. Add your custom skills (use unique names — they're automatically safe from sync)
+4. If you've modified any upstream skill, add its name to `exclude_skills` in `.sync-upstream.json`
 5. Commit everything
 
 ### Regular Sync Routine
