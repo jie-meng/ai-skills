@@ -8,12 +8,31 @@ The main [mythril-agent-skills](https://github.com/jie-meng/mythril-agent-skills
 
 1. Fork the repository
 2. Add your own skills under `mythril_agent_skills/skills/`
-3. Use the sync script to pull upstream updates — your custom skills with unique names are automatically safe
+3. Sync upstream updates — your custom skills with unique names are automatically safe
 
-## Quick Start
+## Choosing a Sync Method
+
+| Method | Best for | Handles modified upstream skills? |
+|---|---|---|
+| **GitHub Sync Fork** | github.com forks, simple setups | No — may cause merge conflicts |
+| **Sync script** (`sync-upstream.py`) | Any platform; fine-grained control | Yes — use `exclude_skills` to skip them |
+
+### GitHub Sync Fork
+
+If you forked on **github.com**, you can use GitHub's built-in **"Sync fork"** button on your fork's page. This performs a standard git merge/fast-forward.
+
+- Works well when you **only add custom skills with unique names** — no conflicts
+- If you've **modified an upstream skill** (e.g., customized `jira`), you may get merge conflicts that need manual resolution
+- No extra tooling required — just click the button on GitHub
+
+### Sync script
+
+For forks on **GitHub Enterprise, GitLab, Gitee, Bitbucket**, or any other platform — or when you need **selective sync with `exclude_skills`** to protect modified upstream skills — use the bundled sync script.
+
+## Quick Start (Sync Script)
 
 ```bash
-# 1. Fork the repo on GitHub, then clone your fork
+# 1. Fork the repo, then clone your fork
 git clone https://github.com/<your-username>/mythril-agent-skills.git
 cd mythril-agent-skills
 

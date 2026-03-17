@@ -107,9 +107,19 @@ python3 scripts/skills-cleanup.py     # Interactive remover
 python3 scripts/skills-check.py       # Dependency checker
 ```
 
-**Stay up to date with upstream:**
+**Stay up to date with upstream — pick the method that fits your setup:**
 
-When you want to pull in the latest skills from the original repository, use the sync script:
+#### Method 1: GitHub Sync Fork (GitHub.com forks)
+
+If you forked on **github.com**, you can use GitHub's built-in **"Sync fork"** button on your fork's page to pull in upstream changes. This performs a standard git merge/fast-forward.
+
+- Works well when you **only add custom skills with unique names** — no conflicts
+- If you've **modified an upstream skill** (e.g., customized `jira`), you may get merge conflicts that need manual resolution
+- No extra tooling required
+
+#### Method 2: Sync script (any platform, fine-grained control)
+
+For forks on **GitHub Enterprise, GitLab, Gitee, Bitbucket**, or any other platform — or when you need **selective sync with `exclude_skills`** — use the bundled sync script:
 
 ```bash
 python3 scripts/sync-upstream.py              # Interactive sync
