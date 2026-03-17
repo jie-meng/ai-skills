@@ -86,12 +86,16 @@ The checker will:
 - Prompt for missing API keys/tokens and save them to your shell config file
 - Verify authentication status (e.g. `gh auth status`)
 
-### Option B: Build skills (clone the repository)
+### Option B: Fork or clone for customization
 
-If you want to create or modify skills (or contribute changes), clone the repo:
+If you want to **customize existing skills, create your own, or maintain private skills**, fork or clone the repo:
 
 ```bash
+# Fork on GitHub first, then clone your fork:
+git clone https://github.com/<your-username>/mythril-agent-skills.git
+# Or clone the original repo directly:
 git clone https://github.com/jie-meng/mythril-agent-skills.git
+
 cd mythril-agent-skills
 ```
 
@@ -103,13 +107,9 @@ python3 scripts/skills-cleanup.py     # Interactive remover
 python3 scripts/skills-check.py       # Dependency checker
 ```
 
-### Option C: Fork for private skills
+**Stay up to date with upstream:**
 
-If you want to maintain **your own private skills** while staying up to date with the upstream repository:
-
-1. Fork this repo on GitHub
-2. Add your own skills under `mythril_agent_skills/skills/`
-3. Exclude your custom skills from upstream sync in `.sync-upstream.json`:
+When you want to pull in the latest skills from the original repository without overwriting your custom work, use the sync script. Exclude your custom or modified skills in `.sync-upstream.json`:
 
 ```json
 {
@@ -117,7 +117,7 @@ If you want to maintain **your own private skills** while staying up to date wit
 }
 ```
 
-4. Sync upstream changes anytime:
+Then sync anytime:
 
 ```bash
 python3 scripts/sync-upstream.py              # Interactive sync
