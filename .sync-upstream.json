@@ -1,0 +1,6 @@
+{
+  "_comment": "Upstream sync configuration for forked repositories. Used by: python3 scripts/sync-upstream.py",
+  "upstream_repo": "https://github.com/jie-meng/mythril-agent-skills.git",
+  "upstream_branch": "main",
+  "exclude_skills": []
+}

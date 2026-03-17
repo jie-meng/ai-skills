@@ -3,7 +3,7 @@
 
 Fetches the latest upstream code and selectively copies updated skills,
 CLI scripts, and project files — skipping any skills listed in the
-exclude_skills section of .sync-upstream.yaml.
+exclude_skills section of .sync-upstream.json.
 
 Usage:
     python3 scripts/sync-upstream.py              # Interactive (confirm before applying)
@@ -13,7 +13,7 @@ Usage:
 
 from __future__ import annotations
 
-import re
+import json
 import shutil
 import subprocess
 import sys
@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_FILE = REPO_ROOT / ".sync-upstream.yaml"
+CONFIG_FILE = REPO_ROOT / ".sync-upstream.json"
 DEFAULT_UPSTREAM = "https://github.com/jie-meng/mythril-agent-skills.git"
 DEFAULT_BRANCH = "main"
 REMOTE_NAME = "_mythril_upstream"
@@ -48,60 +48,15 @@ SYNC_PATHS = [
 
 
 # ---------------------------------------------------------------------------
-# Minimal YAML parser (stdlib only, handles the simple config format)
+# Config
 # ---------------------------------------------------------------------------
 
 
 def parse_config(path: Path) -> dict[str, str | list[str]]:
-    """Parse .sync-upstream.yaml without PyYAML.
-
-    Supports only the subset used by this config:
-    scalar values (key: value) and simple lists (key: \\n  - item).
-    """
+    """Parse .sync-upstream.json, returning an empty dict if missing."""
     if not path.exists():
         return {}
-
-    text = path.read_text(encoding="utf-8")
-    result: dict[str, str | list[str]] = {}
-    current_key: str | None = None
-    current_list: list[str] | None = None
-
-    for raw_line in text.splitlines():
-        stripped = raw_line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        list_match = re.match(r"^\s+-\s+(.+)$", raw_line)
-        if list_match and current_key is not None:
-            if current_list is None:
-                current_list = []
-            current_list.append(list_match.group(1).strip())
-            continue
-
-        if current_key is not None and current_list is not None:
-            result[current_key] = current_list
-            current_list = None
-            current_key = None
-
-        kv_match = re.match(r"^(\w[\w_]*):\s*(.*)$", raw_line)
-        if kv_match:
-            key = kv_match.group(1)
-            value = kv_match.group(2).strip()
-            if value == "[]":
-                result[key] = []
-                current_key = None
-            elif value == "" or value is None:
-                current_key = key
-                current_list = []
-            else:
-                result[key] = value
-                current_key = None
-                current_list = None
-
-    if current_key is not None and current_list is not None:
-        result[current_key] = current_list
-
-    return result
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +92,14 @@ def fetch_upstream(branch: str) -> None:
     """Fetch the upstream branch."""
     print(f"  Fetching {REMOTE_NAME}/{branch} ...")
     run_git("fetch", REMOTE_NAME, branch, capture=False)
+
+
+def remove_remote() -> None:
+    """Remove the temporary upstream remote."""
+    try:
+        run_git("remote", "remove", REMOTE_NAME)
+    except subprocess.CalledProcessError:
+        pass
 
 
 def has_uncommitted_changes() -> bool:
@@ -444,38 +407,41 @@ def main() -> None:
                 sys.exit(0)
 
     ensure_remote(upstream_url)
-    fetch_upstream(upstream_branch)
+    try:
+        fetch_upstream(upstream_branch)
 
-    with tempfile.TemporaryDirectory(prefix="mythril-sync-") as tmp:
-        tmp_path = Path(tmp)
-        print("  Extracting upstream content ...")
-        extract_upstream(upstream_branch, tmp_path)
+        with tempfile.TemporaryDirectory(prefix="mythril-sync-") as tmp:
+            tmp_path = Path(tmp)
+            print("  Extracting upstream content ...")
+            extract_upstream(upstream_branch, tmp_path)
 
-        to_copy, to_delete, skipped = collect_changes(tmp_path, exclude_skills)
-        print_summary(to_copy, to_delete, skipped)
+            to_copy, to_delete, skipped = collect_changes(tmp_path, exclude_skills)
+            print_summary(to_copy, to_delete, skipped)
 
-        if not to_copy and not to_delete:
-            return
-
-        if dry_run:
-            print(f"\n{DIM}Dry run — no changes applied.{NC}")
-            return
-
-        if not force:
-            try:
-                answer = input(
-                    f"\n{YELLOW}Apply these changes?{NC} [y/N] "
-                ).strip().lower()
-            except (EOFError, KeyboardInterrupt):
-                print("\nAborted.")
-                sys.exit(1)
-            if answer != "y":
-                print("Aborted.")
+            if not to_copy and not to_delete:
                 return
 
-        apply_changes(to_copy, to_delete)
-        print(f"\n{GREEN}✓ Sync complete!{NC}")
-        print_report(to_copy, to_delete, skipped)
+            if dry_run:
+                print(f"\n{DIM}Dry run — no changes applied.{NC}")
+                return
+
+            if not force:
+                try:
+                    answer = input(
+                        f"\n{YELLOW}Apply these changes?{NC} [y/N] "
+                    ).strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    print("\nAborted.")
+                    sys.exit(1)
+                if answer != "y":
+                    print("Aborted.")
+                    return
+
+            apply_changes(to_copy, to_delete)
+            print(f"\n{GREEN}✓ Sync complete!{NC}")
+            print_report(to_copy, to_delete, skipped)
+    finally:
+        remove_remote()
 
 
 if __name__ == "__main__":

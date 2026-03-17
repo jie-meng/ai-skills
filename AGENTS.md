@@ -26,7 +26,7 @@ mythril-agent-skills/
 │   └── skills/                  # Bundled skill definitions
 ├── scripts/                     # Backward-compatible wrappers (for dev use)
 │   └── sync-upstream.py         # Fork upstream sync tool
-├── .sync-upstream.yaml          # Upstream sync config (for forks)
+├── .sync-upstream.json           # Upstream sync config (for forks)
 ├── pyproject.toml               # Package configuration
 └── ...
 ```
@@ -114,7 +114,7 @@ python3 scripts/sync-upstream.py --dry-run     # Preview only
 python3 scripts/sync-upstream.py --force        # No confirmation
 ```
 
-Configuration is in `.sync-upstream.yaml` (repo root). The `exclude_skills` list prevents specific skills from being overwritten during sync. See [docs/FORK-SYNC.md](./docs/FORK-SYNC.md) for details.
+Configuration is in `.sync-upstream.json` (repo root). The `exclude_skills` list prevents specific skills from being overwritten during sync. See [docs/FORK-SYNC.md](./docs/FORK-SYNC.md) for details.
 
 ### Supported tools
 

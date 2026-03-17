@@ -109,12 +109,12 @@ If you want to maintain **your own private skills** while staying up to date wit
 
 1. Fork this repo on GitHub
 2. Add your own skills under `mythril_agent_skills/skills/`
-3. Exclude your custom skills from upstream sync in `.sync-upstream.yaml`:
+3. Exclude your custom skills from upstream sync in `.sync-upstream.json`:
 
-```yaml
-exclude_skills:
-  - my-custom-skill
-  - jira   # if you've customized an existing skill
+```json
+{
+  "exclude_skills": ["my-custom-skill", "jira"]
+}
 ```
 
 4. Sync upstream changes anytime:
@@ -236,7 +236,7 @@ mythril-agent-skills/
 │   ├── INSTALLATION.md          # Full dependency reference
 │   ├── PUBLISHING.md            # PyPI publishing & testing guide
 │   └── FORK-SYNC.md             # Fork sync guide
-├── .sync-upstream.yaml          # Upstream sync configuration (for forks)
+├── .sync-upstream.json           # Upstream sync configuration (for forks)
 ├── pyproject.toml               # Package configuration
 ├── AGENTS.md                    # Developer guidelines for agents
 ├── LICENSE                      # Apache 2.0 License

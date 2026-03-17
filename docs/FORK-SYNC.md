@@ -22,7 +22,7 @@ mkdir mythril_agent_skills/skills/my-custom-skill
 # ... create SKILL.md, scripts, etc.
 
 # 3. Exclude your custom skills from future syncs
-#    Edit .sync-upstream.yaml and add your skill names to exclude_skills
+#    Edit .sync-upstream.json and add your skill names to exclude_skills
 
 # 4. Sync upstream changes anytime
 python3 scripts/sync-upstream.py
@@ -30,20 +30,17 @@ python3 scripts/sync-upstream.py
 
 ## Configuration
 
-The sync behavior is controlled by **`.sync-upstream.yaml`** in the repository root:
+The sync behavior is controlled by **`.sync-upstream.json`** in the repository root:
 
-```yaml
-# The upstream repository URL
-upstream_repo: https://github.com/jie-meng/mythril-agent-skills.git
-
-# The upstream branch to sync from
-upstream_branch: main
-
-# Skills to exclude from syncing (your customized skills)
-# These will never be overwritten by upstream changes.
-exclude_skills:
-  - my-custom-skill
-  - jira              # e.g., you customized the Jira skill
+```json
+{
+  "upstream_repo": "https://github.com/jie-meng/mythril-agent-skills.git",
+  "upstream_branch": "main",
+  "exclude_skills": [
+    "my-custom-skill",
+    "jira"
+  ]
+}
 ```
 
 ### Configuration Fields
@@ -130,7 +127,7 @@ The script syncs the following paths from upstream:
 
 - **Excluded skills** — anything listed in `exclude_skills`
 - **Your own new skills** — skills that only exist in your fork are untouched
-- **`.sync-upstream.yaml`** — your configuration is never overwritten
+- **`.sync-upstream.json`** — your configuration is never overwritten
 - **`README.md`** — your fork's README stays as-is
 - **`.git/`** — git history is never modified
 - **`pyproject.toml`** — your fork's package config stays as-is (you may want to update this manually)
@@ -142,7 +139,7 @@ The script syncs the following paths from upstream:
 1. Fork the repository on GitHub
 2. Clone your fork locally
 3. Add your custom skills
-4. Edit `.sync-upstream.yaml` to exclude your custom skills
+4. Edit `.sync-upstream.json` to exclude your custom skills
 5. Commit everything
 
 ### Regular Sync Routine
@@ -170,10 +167,11 @@ git commit -m "Sync upstream mythril-agent-skills changes"
 If you modify an existing upstream skill (e.g., customizing `jira` for your organization):
 
 1. Make your changes to the skill
-2. Add the skill name to `exclude_skills` in `.sync-upstream.yaml`:
-   ```yaml
-   exclude_skills:
-     - jira
+2. Add the skill name to `exclude_skills` in `.sync-upstream.json`:
+   ```json
+   {
+     "exclude_skills": ["jira"]
+   }
    ```
 3. Commit both the skill changes and the config update
 
