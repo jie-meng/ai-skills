@@ -22,6 +22,7 @@ A skill is a prompt/instruction bundle that teaches an AI assistant how to handl
 | [GH Operations](./mythril_agent_skills/skills/gh-operations/) | Use GitHub CLI (`gh`) for GitHub issue/PR workflows: read/write issues, inspect/create pull requests, and add PR comments (including inline line-level review comments). | "use gh", "gh issue", "gh pr", "comment on this PR line", or "add an inline PR comment" | `gh` CLI |
 | [ImageMagick](./mythril_agent_skills/skills/imagemagick/) | Process and manipulate images via ImageMagick CLI. Supports resizing, format conversion, cropping, thumbnails, effects, watermarks, batch processing, and metadata extraction. | "resize image", "convert to webp", "image thumbnail", "batch resize", "compress image", "add watermark", "imagemagick" | `magick` CLI |
 | [FFmpeg](./mythril_agent_skills/skills/ffmpeg/) | Process and manipulate video and audio files via FFmpeg CLI. Supports transcoding, format conversion, trimming, merging, resizing, compression, extracting audio, subtitles, GIF creation, and audio format conversion (MP3, WAV, PCM, OGG, AAC, FLAC, OPUS). | "convert video", "compress video", "trim video", "extract audio", "mp3 to wav", "convert audio", "video to gif", "ffmpeg" | `ffmpeg` CLI |
+| [Git Repo Reader](./mythril_agent_skills/skills/git-repo-reader/) | Clone, cache, and read any git repository from any hosting platform (GitHub, GitLab, Gitee, Bitbucket, self-hosted, etc.) for code exploration and analysis. Caches repos across sessions for reuse. | "look at this repo", "read this repo", "how does this repo implement X", git clone URL + code question | `git` CLI |
 
 ---
 
@@ -259,7 +260,8 @@ mythril-agent-skills/
 │       ├── ffmpeg/              # Video & audio processing via FFmpeg CLI
 │       ├── imagemagick/         # Image processing via ImageMagick CLI
 │       ├── jira/                # Jira REST API issue/sprint/board workflows
-│       └── code-review-staged/  # Structured code reviews
+│       ├── code-review-staged/  # Structured code reviews
+│       └── git-repo-reader/     # Clone and read any git repo
 ├── scripts/                     # Dev scripts & backward-compatible wrappers
 │   ├── sync-upstream.py         # Fork upstream sync tool
 │   └── init-fork.py             # One-time fork initializer (detach + git re-init)

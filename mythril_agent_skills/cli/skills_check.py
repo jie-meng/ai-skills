@@ -83,6 +83,7 @@ SKILL_CONFLUENCE = "confluence"
 SKILL_FIGMA = "figma"
 SKILL_IMAGEMAGICK = "imagemagick"
 SKILL_FFMPEG = "ffmpeg"
+SKILL_GIT_REPO_READER = "git-repo-reader"
 
 CHECKABLE_SKILLS = [
     SKILL_GH_OPERATIONS,
@@ -92,6 +93,7 @@ CHECKABLE_SKILLS = [
     SKILL_FIGMA,
     SKILL_IMAGEMAGICK,
     SKILL_FFMPEG,
+    SKILL_GIT_REPO_READER,
 ]
 
 
@@ -629,6 +631,41 @@ def check_ffmpeg(config_path: Path) -> bool:
     return True
 
 
+# --- Git ---
+
+
+_GIT_INSTALL_HINTS: dict[str, list[str]] = {
+    "macOS": ["xcode-select --install", "brew install git"],
+    "Linux (Debian/Ubuntu)": ["sudo apt-get install git"],
+    "Linux (Fedora/RHEL)": ["sudo dnf install git"],
+    "Windows (scoop)": ["scoop install git"],
+    "Windows (choco)": ["choco install git"],
+    "Windows (winget)": ["winget install --id Git.Git"],
+}
+
+
+def check_git(config_path: Path) -> bool:
+    """Check that git CLI is installed and functional."""
+    print(f"\n{BOLD}Git (git):{NC}")
+
+    if not shutil.which("git"):
+        print(f"  Status:   {RED}NOT INSTALLED{NC}")
+        print(f"    {BOLD}Install options:{NC}")
+        _print_install_hints(_GIT_INSTALL_HINTS, "https://git-scm.com/downloads")
+        return False
+
+    version = _run_command(["git", "--version"])
+    if version.returncode == 0:
+        first_line = version.stdout.strip().splitlines()[0] if version.stdout.strip() else ""
+        print(f"  Status:   {GREEN}installed{NC}")
+        if first_line:
+            print(f"  Version:  {DIM}{first_line}{NC}")
+    else:
+        print(f"  Status:   {GREEN}installed{NC}")
+
+    return True
+
+
 # --- Curses multi-select UI ---
 
 
@@ -776,6 +813,10 @@ def main() -> None:
 
     if SKILL_FFMPEG in skills:
         if not check_ffmpeg(config_path):
+            all_configured = False
+
+    if SKILL_GIT_REPO_READER in skills:
+        if not check_git(config_path):
             all_configured = False
 
     print()
