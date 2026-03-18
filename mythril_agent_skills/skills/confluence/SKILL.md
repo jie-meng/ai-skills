@@ -34,6 +34,13 @@ When `ATLASSIAN_BASE_URL` is not set, page commands accept a full Confluence URL
 
 These environment variables are shared with the Jira skill.
 
+## Security — MANDATORY rules for AI agents
+
+1. **NEVER echo, print, or log** the values of `ATLASSIAN_API_TOKEN`, `ATLASSIAN_USER_EMAIL`, `ATLASSIAN_BASE_URL`, or any other environment variable. Do NOT run commands like `echo $ATLASSIAN_API_TOKEN` or `printenv ATLASSIAN_API_TOKEN` — even for debugging.
+2. **NEVER pass token/credential values as inline CLI arguments or env-var overrides** (e.g. `ATLASSIAN_API_TOKEN=xxx python3 ...`). The script reads credentials from the environment automatically — just run the script directly.
+3. **When debugging auth errors**, rely solely on the script's error output (401, 403, 404 messages). Do NOT attempt to verify tokens by reading or printing them.
+4. **Do NOT read environment variable values** using shell commands or programmatic access. The script handles all credential access internally.
+
 ## Runtime requirements
 
 - Python 3.10+ for `scripts/confluence_api.py`

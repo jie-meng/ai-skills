@@ -36,6 +36,12 @@ For local staged changes, use `code-review-staged` instead.
 - **Optional for enterprise SSO**: `curl --negotiate -u :` support for SPNEGO/Kerberos-protected asset URLs
 - Run `skills-check github-code-review-pr` to verify dependencies
 
+## Security — MANDATORY rules for AI agents
+
+1. **NEVER echo, print, or log** the values of any environment variable containing credentials (`GH_TOKEN`, `GITHUB_TOKEN`, etc.). Do NOT run commands like `echo $GH_TOKEN` or `printenv GITHUB_TOKEN` — even for debugging.
+2. **NEVER pass token/credential values as inline CLI arguments or env-var overrides.** `gh` reads credentials from its own config — just run `gh` commands directly.
+3. **When debugging auth errors**, rely solely on `gh auth status` output and `gh` error messages. Do NOT attempt to verify tokens by reading or printing them.
+
 # Requirements for Outputs
 
 ## Code Review Quality

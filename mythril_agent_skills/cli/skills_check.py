@@ -373,7 +373,12 @@ def check_atlassian(config_path: Path) -> bool:
 
     email = os.environ.get("ATLASSIAN_USER_EMAIL")
     if email:
-        print(f"  ATLASSIAN_USER_EMAIL:  {GREEN}{email}{NC}")
+        at_idx = email.find("@")
+        if at_idx > 1:
+            masked_email = email[0] + "***" + email[at_idx:]
+        else:
+            masked_email = "***"
+        print(f"  ATLASSIAN_USER_EMAIL:  {GREEN}set{NC} ({masked_email})")
     else:
         print(f"  ATLASSIAN_USER_EMAIL:  {RED}NOT SET{NC} (Required for Jira Cloud)")
         value = _prompt_value("Enter your Atlassian account email (or Enter to skip)")

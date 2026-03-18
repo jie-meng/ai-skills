@@ -183,6 +183,19 @@ Detailed instructions, examples, and workflows...
 - Mention what the skill does, not just what it is
 - Avoid vague descriptions — specificity improves triggering accuracy
 
+### Security Rules for Skills Using API Tokens or Credentials
+
+Skills that require API tokens, passwords, or other credentials (e.g. `ATLASSIAN_API_TOKEN`, `FIGMA_ACCESS_TOKEN`, `GH_TOKEN`) MUST include a **"Security — MANDATORY rules for AI agents"** section in their `SKILL.md` with these rules:
+
+1. **NEVER echo, print, or log** the value of any environment variable — even for debugging. Commands like `echo $TOKEN`, `printenv TOKEN`, `env | grep TOKEN` are strictly forbidden.
+2. **NEVER pass credential values as inline CLI arguments or env-var overrides** (e.g. `TOKEN=xxx python3 script.py`). Scripts MUST read credentials from the environment internally via `os.environ`. The AI agent simply runs the script — no manual credential handling.
+3. **NEVER read environment variable values** using shell commands or programmatic access. The AI agent should not inspect, verify, or access token values in any way.
+4. **When debugging auth errors**, rely solely on the script's error messages (401, 403, etc.). Do NOT attempt to verify tokens by reading or printing them.
+
+These rules prevent accidental credential exposure in terminal output, chat logs, and conversation transcripts.
+
+**For `skills_check.py`**: Token values MUST be masked (show only last 4 chars). Email addresses MUST be partially masked (e.g. `j***@example.com`). Base URLs may be shown in full.
+
 ---
 
 ## Temporary Files & Cache Convention

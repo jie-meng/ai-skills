@@ -21,6 +21,13 @@ license: Apache-2.0
 
 Requires `FIGMA_ACCESS_TOKEN` environment variable. See `README.md` in this skill directory for setup instructions.
 
+## Security — MANDATORY rules for AI agents
+
+1. **NEVER echo, print, or log** the value of `FIGMA_ACCESS_TOKEN` or any other environment variable. Do NOT run commands like `echo $FIGMA_ACCESS_TOKEN` or `printenv FIGMA_ACCESS_TOKEN` — even for debugging.
+2. **NEVER pass token values as inline CLI arguments or env-var overrides** (e.g. `FIGMA_ACCESS_TOKEN=xxx python3 ...`). The scripts read the token from the environment automatically — just run the script directly.
+3. **When debugging auth errors**, rely solely on the script's error output (401, 403, 429 messages). Do NOT attempt to verify tokens by reading or printing them.
+4. **Do NOT read environment variable values** using shell commands or programmatic access. The scripts handle all credential access internally.
+
 # Workflow
 
 1. Extract the Figma URL from the user's message
