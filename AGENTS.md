@@ -87,7 +87,7 @@ Features:
 
 ### Clean Cache: `skills-clean-cache`
 
-Removes temporary files created by skills at runtime (git clones for PR review, exported images, etc.). All skills store temp files under a unified cache directory: `${TMPDIR:-/tmp}/mythril-skills-cache/`.
+Removes temporary files created by skills at runtime (git clones for PR review, exported images, etc.). All skills store temp files under a unified cache directory: `$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/`.
 
 ```bash
 skills-clean-cache          # Interactive: list cache contents, confirm before deleting
@@ -187,37 +187,47 @@ Detailed instructions, examples, and workflows...
 
 ## Temporary Files & Cache Convention
 
-Skills that need to download files, clone repos, or create temp artifacts at runtime MUST use the unified cache directory:
+Skills that need to download files, clone repos, or create temp artifacts at runtime MUST use the unified cache directory with a **canonicalized** (symlink-resolved) path:
 
 ```
-${TMPDIR:-/tmp}/mythril-skills-cache/<skill-name>/
+$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/<skill-name>/
 ```
 
 ### Cross-platform cache directory creation
 
-Skills run on macOS, Linux, and Windows. Use the appropriate syntax for the user's platform:
+Skills run on macOS, Linux, and Windows. Use the appropriate syntax for the user's platform.
+
+**IMPORTANT**: On macOS, `/tmp` is a symlink to `/private/tmp`, and `$TMPDIR` points to `/var/folders/...` while `/var` is a symlink to `/private/var`. Without canonicalization, the same logical directory can appear as different paths (e.g., `/var/folders/.../T/...` vs `/private/var/folders/.../T/...` vs `/tmp/...`). Always use `realpath` (bash) or `Path.resolve()` (Python) to eliminate symlinks and ensure all tools see the same canonical path.
 
 **Bash (macOS / Linux):**
 ```bash
-CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/<skill-name>"
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/<skill-name>"
 mkdir -p "$CACHE_DIR"
 RUN_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
 ```
 
 **PowerShell (Windows):**
 ```powershell
-$CACHE_DIR = Join-Path ([System.IO.Path]::GetTempPath()) "mythril-skills-cache/<skill-name>"
+$CACHE_DIR = Join-Path ([IO.Path]::GetFullPath([IO.Path]::GetTempPath())) "mythril-skills-cache/<skill-name>"
 New-Item -ItemType Directory -Force -Path $CACHE_DIR | Out-Null
 $RUN_DIR = Join-Path $CACHE_DIR ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Force -Path $RUN_DIR | Out-Null
 ```
 
-All approaches resolve to the same logical location per platform:
-- **macOS**: `$TMPDIR/mythril-skills-cache/...` (e.g., `/var/folders/.../T/mythril-skills-cache/...`)
-- **Linux**: `/tmp/mythril-skills-cache/...`
-- **Windows**: `%TEMP%\mythril-skills-cache\...` (e.g., `C:\Users\<user>\AppData\Local\Temp\mythril-skills-cache\...`)
+**Python:**
+```python
+from pathlib import Path
+import tempfile
+cache_dir = Path(tempfile.gettempdir()).resolve() / "mythril-skills-cache" / "<skill-name>"
+cache_dir.mkdir(parents=True, exist_ok=True)
+```
 
-The Python `skills-clean-cache` CLI already uses `tempfile.gettempdir()` which resolves correctly on all platforms.
+All approaches resolve to the same **canonical** (symlink-free) location per platform:
+- **macOS**: `/private/var/folders/.../T/mythril-skills-cache/...`
+- **Linux**: `/tmp/mythril-skills-cache/...`
+- **Windows**: `C:\Users\<user>\AppData\Local\Temp\mythril-skills-cache\...`
+
+The Python `skills-clean-cache` CLI uses `Path(tempfile.gettempdir()).resolve()` which resolves symlinks correctly on all platforms.
 
 ### Cache directory rules
 

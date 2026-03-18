@@ -2,7 +2,7 @@
 """Skills Clean Cache - Remove temporary files created by skills at runtime.
 
 All skills store temp files under a unified cache directory:
-    ${TMPDIR:-/tmp}/mythril-skills-cache/
+    $(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/
 
 This command scans the cache, shows what's there, and lets the user
 selectively or fully clean it up.
@@ -30,8 +30,8 @@ NC = "\033[0m"
 
 
 def get_cache_root() -> Path:
-    """Return the unified skill cache root directory."""
-    return Path(tempfile.gettempdir()) / CACHE_DIR_NAME
+    """Return the unified skill cache root directory (symlink-resolved)."""
+    return Path(tempfile.gettempdir()).resolve() / CACHE_DIR_NAME
 
 
 def format_size(size_bytes: int) -> str:

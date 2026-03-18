@@ -56,7 +56,7 @@ Download under the unified cache.
 
 **Bash (macOS / Linux):**
 ```bash
-CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/confluence"
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/confluence"
 mkdir -p "$CACHE_DIR"
 RUN_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
 IMAGE_CACHE="$RUN_DIR/images"
@@ -65,7 +65,7 @@ mkdir -p "$IMAGE_CACHE"
 
 **PowerShell (Windows):**
 ```powershell
-$CACHE_DIR = Join-Path ([System.IO.Path]::GetTempPath()) "mythril-skills-cache/confluence"
+$CACHE_DIR = Join-Path ([IO.Path]::GetFullPath([IO.Path]::GetTempPath())) "mythril-skills-cache/confluence"
 New-Item -ItemType Directory -Force -Path $CACHE_DIR | Out-Null
 $RUN_DIR = Join-Path $CACHE_DIR ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Force -Path $RUN_DIR | Out-Null

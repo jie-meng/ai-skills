@@ -135,18 +135,20 @@ If the skill needs to download files, clone repos, or create temp artifacts at r
 
 **Bash (macOS / Linux):**
 ```bash
-CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/<skill-name>"
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/<skill-name>"
 mkdir -p "$CACHE_DIR"
 RUN_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
 ```
 
 **PowerShell (Windows):**
 ```powershell
-$CACHE_DIR = Join-Path ([System.IO.Path]::GetTempPath()) "mythril-skills-cache/<skill-name>"
+$CACHE_DIR = Join-Path ([IO.Path]::GetFullPath([IO.Path]::GetTempPath())) "mythril-skills-cache/<skill-name>"
 New-Item -ItemType Directory -Force -Path $CACHE_DIR | Out-Null
 $RUN_DIR = Join-Path $CACHE_DIR ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Force -Path $RUN_DIR | Out-Null
 ```
+
+**IMPORTANT**: The `realpath` (bash) / `GetFullPath` (PowerShell) call resolves symlinks so the path is canonical. On macOS, `/tmp` → `/private/tmp` and `/var` → `/private/var` — without canonicalization, the same directory can appear as different paths.
 
 Within this directory, skills can create random subdirectories freely. Skills do NOT need to implement their own cleanup — the `skills-clean-cache` CLI command handles bulk cleanup for all skills. This keeps temp files discoverable, prevents `/tmp` pollution, and supports parallel execution.
 
@@ -412,7 +414,7 @@ Present the eval set to the user for review using the HTML template:
    - `__EVAL_DATA_PLACEHOLDER__` → the JSON array of eval items (no quotes around it — it's a JS variable assignment)
    - `__SKILL_NAME_PLACEHOLDER__` → the skill's name
    - `__SKILL_DESCRIPTION_PLACEHOLDER__` → the skill's current description
-3. Write to a temp file (e.g., `/tmp/eval_review_<skill-name>.html`) and open it: `open /tmp/eval_review_<skill-name>.html`
+3. Write to a temp file under the unified cache dir and open it: `CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/skill-creator"; mkdir -p "$CACHE_DIR"; open "$CACHE_DIR/eval_review_<skill-name>.html"`
 4. The user can edit queries, toggle should-trigger, add/remove entries, then click "Export Eval Set"
 5. The file downloads to `~/Downloads/eval_set.json` — check the Downloads folder for the most recent version in case there are multiple (e.g., `eval_set (1).json`)
 

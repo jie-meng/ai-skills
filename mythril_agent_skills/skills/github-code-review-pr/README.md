@@ -155,11 +155,11 @@ Recommended retrieval order:
 1. `curl -fsSL <image_url> -o <local_file>`
 2. If enterprise auth blocks access, retry with `curl -fsSL --negotiate -u : <image_url> -o <local_file>`
 
-Store image files under a random run dir in `${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr/`.
+Store image files under a random run dir in `$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr/`.
 
 Recommended shell pattern:
 ```bash
-CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr"
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr"
 mkdir -p "$CACHE_DIR"
 RUN_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
 IMAGE_CACHE="$RUN_DIR/images"
@@ -171,7 +171,7 @@ Then summarize what each image shows and whether it supports PR claims.
 
 ## Cleaning Up Temp Directories
 
-PR reviews that use Path B (partial clone) create temporary directories under `${TMPDIR}/mythril-skills-cache/github-code-review-pr/`. These are normally cleaned up after each review, but interrupted sessions may leave them behind. Use the shared cache cleaner:
+PR reviews that use Path B (partial clone) create temporary directories under `$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr/`. These are normally cleaned up after each review, but interrupted sessions may leave them behind. Use the shared cache cleaner:
 
 ```bash
 skills-clean-cache          # interactive — lists cache contents, asks for confirmation

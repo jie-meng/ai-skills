@@ -111,11 +111,11 @@ Recommended retrieval order:
    `curl -fsSL --negotiate -u : <image_url> -o <local_file>`
 
 Store image files under a random run dir in:
-`${TMPDIR:-/tmp}/mythril-skills-cache/gh-operations/`
+`$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/gh-operations/`
 
 Recommended shell pattern:
 ```bash
-CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/gh-operations"
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/gh-operations"
 mkdir -p "$CACHE_DIR"
 RUN_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
 IMAGE_CACHE="$RUN_DIR/images"

@@ -111,7 +111,7 @@ Download relevant images under a random run directory in the unified cache.
 
 **Bash (macOS / Linux):**
 ```bash
-CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr"
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr"
 mkdir -p "$CACHE_DIR"
 RUN_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
 IMAGE_CACHE="$RUN_DIR/images"
@@ -120,7 +120,7 @@ mkdir -p "$IMAGE_CACHE"
 
 **PowerShell (Windows):**
 ```powershell
-$CACHE_DIR = Join-Path ([System.IO.Path]::GetTempPath()) "mythril-skills-cache/github-code-review-pr"
+$CACHE_DIR = Join-Path ([IO.Path]::GetFullPath([IO.Path]::GetTempPath())) "mythril-skills-cache/github-code-review-pr"
 New-Item -ItemType Directory -Force -Path $CACHE_DIR | Out-Null
 $RUN_DIR = Join-Path $CACHE_DIR ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Force -Path $RUN_DIR | Out-Null
@@ -170,7 +170,7 @@ Create a temp directory under the **unified skill cache** so `skills-clean-cache
 
 **Bash (macOS / Linux):**
 ```bash
-CACHE_DIR="${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr"
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr"
 mkdir -p "$CACHE_DIR"
 REVIEW_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
 gh repo clone <owner/repo> "$REVIEW_DIR" -- --filter=blob:none --depth=1 --single-branch --sparse
@@ -179,7 +179,7 @@ cd "$REVIEW_DIR"
 
 **PowerShell (Windows):**
 ```powershell
-$CACHE_DIR = Join-Path ([System.IO.Path]::GetTempPath()) "mythril-skills-cache/github-code-review-pr"
+$CACHE_DIR = Join-Path ([IO.Path]::GetFullPath([IO.Path]::GetTempPath())) "mythril-skills-cache/github-code-review-pr"
 New-Item -ItemType Directory -Force -Path $CACHE_DIR | Out-Null
 $REVIEW_DIR = Join-Path $CACHE_DIR ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Force -Path $REVIEW_DIR | Out-Null
@@ -381,7 +381,7 @@ After the review is complete:
 - **Path B** (partial clone): Delete the review directory: `rm -rf "$REVIEW_DIR"`
 - **Path A** (existing repo): Restore the original branch: `git checkout "$ORIGINAL_BRANCH"`
 
-All temp directories live under the unified cache path (`${TMPDIR:-/tmp}/mythril-skills-cache/github-code-review-pr/` on Unix, `%TEMP%\mythril-skills-cache\github-code-review-pr\` on Windows). If leftovers accumulate (e.g., from interrupted sessions), the user can run:
+All temp directories live under the unified cache path (`$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr/` on Unix, `%TEMP%\mythril-skills-cache\github-code-review-pr\` on Windows). If leftovers accumulate (e.g., from interrupted sessions), the user can run:
 ```bash
 skills-clean-cache
 ```
