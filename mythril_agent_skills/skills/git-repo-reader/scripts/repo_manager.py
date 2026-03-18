@@ -186,9 +186,9 @@ def run_git(
 def git_clone(
     clone_url: str, target: Path, branch: str | None = None
 ) -> None:
-    """Clone a repository using blobless single-branch clone."""
+    """Clone a repository using blobless clone (all branches, blobs on demand)."""
     target.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["clone", "--filter=blob:none", "--single-branch"]
+    cmd = ["clone", "--filter=blob:none"]
     if branch:
         cmd += ["--branch", branch]
     cmd += [clone_url, str(target)]
@@ -209,7 +209,7 @@ def git_pull(repo_path: Path) -> None:
 
 
 def git_fetch(repo_path: Path) -> None:
-    """Fetch latest refs from origin (default branch only, prune stale)."""
+    """Fetch latest refs from origin (all branches, prune stale)."""
     result = run_git(["fetch", "origin", "--prune"], cwd=repo_path)
     if result.returncode != 0:
         raise RuntimeError(
@@ -330,7 +330,7 @@ def cmd_clone(url: str, branch: str | None = None) -> None:
 def cmd_sync(url: str) -> None:
     """Ensure a repo is cached with a clean working tree.
 
-    If the repo is not yet cached, performs a blobless single-branch clone.
+    If the repo is not yet cached, performs a blobless clone.
     If already cached, fetches origin to refresh refs, then resets the
     working tree to a clean state on the default branch.
 
@@ -382,7 +382,7 @@ def cmd_sync(url: str) -> None:
         log(f"[cleanup] Removing leftover directory: {local_path}")
         shutil.rmtree(local_path, ignore_errors=True)
 
-    log(f"[clone] Cloning {clone_url} (blobless, single-branch)...")
+    log(f"[clone] Cloning {clone_url} (blobless)...")
     git_clone(clone_url, local_path)
     add_entry(url, local_path)
     log("[clone] Done.")
