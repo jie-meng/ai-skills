@@ -146,7 +146,7 @@ If image retrieval fails, report the exact reason and ask for one targeted unblo
 
 ## Step 3: Get Local Access to the Repository
 
-The goal is to have the full codebase available locally so all context gathering is just file reads — no per-file API requests. This skill uses a **shared repo cache** (same cache used by `git-repo-reader` and other skills) to avoid re-cloning repos across reviews.
+The goal is to have repo context available locally so context gathering is just file reads — no per-file API requests. Try these paths **in order** — pick the first one that applies.
 
 ### Path A: Already inside the target repo
 
@@ -160,34 +160,17 @@ gh pr checkout <PR_NUMBER>
 
 After review, restore the original branch (see Step 7).
 
-### Path B: Not inside the target repo — use shared repo cache
+### Path B: Shared repo cache hit — full repo already cached
 
-Use the shared repo manager to get a cached clone. The manager handles everything: cache lookup, blobless clone if needed, and fetching all remote branches to the latest state.
-
-**Step B1: Sync the repo cache**
-
-Construct the repo HTTPS URL from the PR metadata (the `url` field gives `https://<host>/<owner>/<repo>/pull/<number>` — strip the `/pull/<number>` part):
+Check if the `git-repo-reader` skill (or a previous review) has already cached this repo. Run the bundled lookup script:
 
 ```bash
-REPO_PATH=$(python3 scripts/repo_manager.py sync "https://<host>/<owner>/<repo>")
+REPO_PATH=$(python3 scripts/repo_cache_lookup.py "https://<host>/<owner>/<repo>")
 ```
 
-The `sync` command:
-1. If the repo is not yet cached → performs a **blobless clone** (`--filter=blob:none`, all branches)
-2. If already cached → runs `git fetch --all --prune` to refresh every remote branch
-3. Resets to the default branch in a clean state
-4. Prints the local path to stdout
+This is a **read-only** lookup — it checks the shared `git-repo-cache` mapping file and prints the local path if found (exit 0), or exits 1 if not cached. It never clones or modifies anything.
 
-**Why blobless clone instead of partial clone + sparse checkout:**
-- Blobless clone downloads only commit + tree objects (typically tens of MB even for huge repos)
-- `git ls-tree`, `git log`, `git diff`, `git blame` all work immediately without network calls
-- File content is fetched on demand when you read a file — transparent and automatic
-- No need to guess which directories to sparse-checkout upfront
-- The repo is cached for reuse — next review of the same repo skips the clone entirely
-
-**Step B2: Ensure both branches are up-to-date**
-
-This is **critical** for review accuracy. The cached repo may have stale branch refs if it was cached before the PR was updated.
+If cache hit (exit 0), update the cached repo and checkout the PR:
 
 ```bash
 cd "$REPO_PATH"
@@ -195,7 +178,7 @@ cd "$REPO_PATH"
 # Fetch the specific branches involved in this PR to ensure they are current
 git fetch origin <baseRefName> <headRefName>
 
-# Checkout the PR branch (gh pr checkout handles creating/updating the local branch)
+# Checkout the PR branch
 gh pr checkout <PR_NUMBER>
 ```
 
@@ -203,19 +186,86 @@ After `gh pr checkout`, `HEAD` points to the PR's latest code. For base branch c
 
 **Important**: Always use `origin/<baseRefName>` (not a local branch) as the comparison target — this is the freshest ref and avoids stale-local-branch issues.
 
-## Step 4: Gather Repository Context (All Local Reads)
+### Path C: No cached repo — partial clone to temp directory
 
-Now that the full repo is available locally, gather context by reading files directly. With blobless clone, git automatically fetches blob content on demand when you read a file — this is transparent and requires no special handling.
+If neither Path A nor Path B applies, use **partial clone + sparse checkout** to avoid downloading the entire repo. This downloads only git metadata (commits and tree objects) on clone — **file contents are NOT downloaded until explicitly checked out**. Even for a multi-GB monorepo, the initial clone is typically just a few MB.
 
-### 4a. Project structure overview
+Create a temp directory under the **unified skill cache**:
+
+**Bash (macOS / Linux):**
+```bash
+CACHE_DIR="$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr"
+mkdir -p "$CACHE_DIR"
+REVIEW_DIR=$(mktemp -d "$CACHE_DIR/XXXXXXXX")
+gh repo clone <owner/repo> "$REVIEW_DIR" -- --filter=blob:none --depth=1 --single-branch --sparse
+cd "$REVIEW_DIR"
+```
+
+**PowerShell (Windows):**
+```powershell
+$CACHE_DIR = Join-Path ([IO.Path]::GetFullPath([IO.Path]::GetTempPath())) "mythril-skills-cache/github-code-review-pr"
+New-Item -ItemType Directory -Force -Path $CACHE_DIR | Out-Null
+$REVIEW_DIR = Join-Path $CACHE_DIR ([System.IO.Path]::GetRandomFileName())
+New-Item -ItemType Directory -Force -Path $REVIEW_DIR | Out-Null
+gh repo clone <owner/repo> "$REVIEW_DIR" -- --filter=blob:none --depth=1 --single-branch --sparse
+Set-Location $REVIEW_DIR
+```
+
+Now the repo is cloned but the working directory is nearly empty (only root-level files). Next, selectively populate **only the files we need** using sparse-checkout:
+
+```bash
+git sparse-checkout init --cone
+```
+
+Then determine which files/directories to check out based on the PR metadata from Step 2:
+
+**1. Config & convention files at the repo root** — always check out:
+```bash
+git sparse-checkout set /
+```
+This checks out root-level files only (README.md, AGENTS.md, CLAUDE.md, pyproject.toml, package.json, etc.) without pulling any subdirectories.
+
+**2. Directories containing PR-modified files** — extract from the `files` list in Step 2a:
+```bash
+git sparse-checkout add src/components src/utils tests/unit
+```
+Only add the directories that contain files changed in the PR. This pulls just those directory trees.
+
+**3. Directories for related files** — if the diff references imports or base classes from other paths, add those too:
+```bash
+git sparse-checkout add src/types src/shared
+```
+
+Now checkout the PR branch to get the PR's version of those files:
+```bash
+gh pr checkout <PR_NUMBER>
+```
+
+After review, delete the temp directory (see Step 7).
+
+### Path selection summary
+
+| Path | Condition | Speed | Context depth |
+|---|---|---|---|
+| A | Already inside target repo | Instant | Full repo |
+| B | Repo found in shared cache | Fast (just `fetch` two branches) | Full repo |
+| C | Repo not cached | Moderate (partial clone) | Targeted files only |
+
+## Step 4: Gather Repository Context
+
+### For Path A and Path B (full repo available)
+
+The full repo is available locally. Read files directly — git auto-fetches blob content on demand if using a blobless clone.
+
+#### 4a. Project structure overview
 
 ```bash
 git ls-tree -r --name-only HEAD | head -200
 ```
 
-This reveals the project's module organization, naming conventions, and architecture — using cached tree objects with no network needed.
+This reveals the project's module organization, naming conventions, and architecture.
 
-### 4b. Coding conventions and config files
+#### 4b. Coding conventions and config files
 
 Read key project files to understand coding standards. Prioritize by relevance to the changed files' languages.
 
@@ -249,20 +299,47 @@ Read key project files to understand coding standards. Prioritize by relevance t
 - Read at most 3-5 config files — prioritize the ones most relevant to the changed files' languages
 - Skim only; skip files larger than ~50KB
 
-### 4c. Full content of modified files
+#### 4c. Full content of modified files
 
 Read the **full current content** of PR-modified files to understand complete context around changes:
-- All modified files are available locally — just read them
 - **Prioritize**: Read the top 5-8 most important modified files (by relevance, not just size)
 - **Skip binary files** and **very large files** (>100KB) — only use the diff for those
 - **For files with few changes** (< 5 lines added/deleted): The diff alone may suffice; skip full read
 - **Focus on**: Files with substantive logic changes, new files, and files with the most additions
 
-### 4d. Related files not in the diff (targeted)
+#### 4d. Related files not in the diff (targeted)
 
 If the diff references imports, base classes, interfaces, or function calls from files NOT in the PR:
-- With the full repo cached, just read the file directly — git auto-fetches the blob on demand
+- Just read the file directly — git auto-fetches the blob on demand
 - Read **at most 2-3** related files for understanding correctness
+
+### For Path C (partial clone with sparse checkout)
+
+#### 4a. Project structure overview
+
+Even with sparse checkout, the **tree objects are fully available**:
+
+```bash
+git ls-tree -r --name-only HEAD | head -200
+```
+
+This reveals the full project structure without downloading any file content.
+
+#### 4b. Coding conventions and config files
+
+Same as above — root-level files are already checked out via `git sparse-checkout set /`.
+
+#### 4c. Full content of modified files
+
+Same priority rules as above. All modified files are already checked out via sparse checkout of their directories.
+
+#### 4d. Related files not in the diff (targeted)
+
+If the diff references files from directories NOT already in sparse checkout, add them:
+```bash
+git sparse-checkout add <directory>
+```
+Git will auto-fetch the needed blobs. Limit to 2-3 related files.
 
 ## Step 5: Detect Language
 
@@ -356,9 +433,10 @@ After the review is complete:
   git reset --hard "origin/${DEFAULT_BRANCH:-main}"
   git clean -fd
   ```
-  **Do NOT delete the cached repo** — it will be reused for future reviews of the same repository.
+  **Do NOT delete the cached repo** — it is shared and will be reused.
+- **Path C** (partial clone): Delete the temp directory: `rm -rf "$REVIEW_DIR"`
 
-Image artifacts stored under `mythril-skills-cache/github-code-review-pr/` are ephemeral. If leftovers accumulate (e.g., from interrupted sessions), the user can run:
+Image artifacts and Path C temp directories live under `mythril-skills-cache/github-code-review-pr/`. If leftovers accumulate (e.g., from interrupted sessions), the user can run:
 ```bash
 skills-clean-cache
 ```
@@ -374,34 +452,29 @@ skills-clean-cache
 - **`gh` not authenticated for github.com**: Report error and suggest `gh auth login`
 - **PR not found**: Verify URL/number and repo access
 - **PR image download failed**: report URL + HTTP/auth error; retry with enterprise SSO (`curl --negotiate -u :`) when applicable; if still blocked, clearly state image analysis is incomplete
-- **Repo sync failure**: If the shared repo manager fails to clone/sync, fall back to reviewing with diff-only context and report the limitation
+- **Clone failure**: If partial clone fails (e.g., private repo without access), fall back to reviewing with diff-only context and report the limitation
 - **Large PR (>50 files)**: Warn the user that review may be less thorough; focus on the most critical files
 - **Binary files**: Skip binary files in review, note them as present
 - **Private repo access**: If unauthorized, report clearly
 
 ## Examples
 
-### Example 1: Review by URL (Chinese)
+### Example 1: Review by URL — repo already in cache (Chinese)
 **User input**: "帮我审查一下这个 PR https://github.com/owner/repo/pull/42"
-**Action**: Fetch PR metadata + diff → sync repo to cache → checkout PR branch → read context locally → review in Chinese
-**Output**: 6-section Chinese review with repo-aware analysis
+**Action**: Fetch PR metadata + diff → cache lookup finds repo (Path B) → fetch PR branches → checkout → read context locally → review in Chinese
+**Output**: 6-section Chinese review with full repo context
 
-### Example 2: Review by URL (English)
+### Example 2: Review by URL — repo not cached (English)
 **User input**: "Review this PR: https://github.com/owner/repo/pull/99"
-**Action**: Fetch PR metadata + diff → sync repo to cache → checkout PR branch → read context locally → review in English
-**Output**: 6-section English review with verdict
+**Action**: Fetch PR metadata + diff → cache miss → partial clone to temp dir (Path C) → sparse checkout → review in English
+**Output**: 6-section English review with targeted context
 
 ### Example 3: Review in current repo context
 **User input**: "Review PR #15"
-**Action**: Already in repo → fetch latest → `gh pr checkout 15`, read context locally, review
+**Action**: Already in repo (Path A) → fetch latest → `gh pr checkout 15`, read context locally, review
 **Output**: Context-aware review, restore original branch when done
 
 ### Example 4: GitHub Enterprise URL (unknown domain)
 **User input**: "帮我看一下这个 PR https://git.acmecorp.com/mobile-team/app-ios/pull/16323"
 **Action**: Domain is NOT gitlab/gitee/bitbucket → proceed optimistically → run `gh pr view https://git.acmecorp.com/...` → if auth error, tell user to run `gh auth login --hostname git.acmecorp.com`
 **Output**: Either full review (if GHE is configured) or clear auth setup instructions
-
-### Example 5: Second review on the same repo
-**User input**: "再帮我看一下 https://github.com/owner/repo/pull/43"
-**Action**: Repo already cached from Example 1 → `sync` refreshes remote refs → checkout PR #43 → review
-**Output**: Much faster — no clone needed, just a fetch + checkout

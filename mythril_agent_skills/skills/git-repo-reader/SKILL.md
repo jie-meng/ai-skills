@@ -110,7 +110,7 @@ The `repo_manager.py` script in `scripts/` supports these subcommands:
 | Command | Description |
 |---|---|
 | `clone <url> [--branch B]` | Clone or reuse a cached repo. Prints the local path. |
-| `sync <url>` | Clone or refresh a repo with all remote branches up-to-date. For multi-branch workflows (e.g., PR review). |
+| `sync <url>` | Clone or refresh a repo, reset to clean default branch. Caller fetches specific branches as needed. |
 | `lookup <url>` | Look up cached path for a URL without cloning. Prints path or exits 1. |
 | `remove <url>` | Delete a cached repo and its mapping entry. |
 | `list` | List all cached repos (URL → path). |

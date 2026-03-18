@@ -1,31 +1,22 @@
 # github-code-review-pr
 
-Context-aware code review for GitHub Pull Requests. Uses a shared blobless repo cache to gather deep repository context efficiently.
+Context-aware code review for GitHub Pull Requests. Uses a hybrid strategy to gather repository context efficiently.
 
 ## How It Works
 
 The key challenge of PR review is that a **diff alone lacks context**. To give a high-quality review, the skill needs to understand the project's structure, coding conventions, and the full content of modified files — not just the changed lines.
 
-This skill uses a **shared repo cache** (powered by `scripts/repo_manager.py`) combined with **blobless clone** (`--filter=blob:none`) to download only what's needed while keeping the full repo structure available. The `git-repo-reader` skill bundles an identical copy of the same script — both read/write the same cache directory, so a repo cloned by one skill is instantly available to the other.
+This skill uses a **three-path strategy** that adapts to what's available, from fastest to most self-sufficient:
 
-### Shared Repo Cache
+| Path | Condition | Speed | Context depth |
+|---|---|---|---|
+| **A** | Already inside the target repo | Instant | Full repo |
+| **B** | Repo found in shared cache (`git-repo-cache`) | Fast (fetch 2 branches) | Full repo |
+| **C** | Repo not cached anywhere | Moderate (partial clone) | Targeted files only |
 
-The repo cache is shared across skills (`git-repo-reader`, `github-code-review-pr`, etc.):
+### Shared Cache Integration
 
-```
-mythril-skills-cache/
-├── git-repo-cache/              # Shared repo cache (long-lived)
-│   ├── repo_map.json
-│   └── repos/
-│       └── github.com/owner/repo/
-└── github-code-review-pr/       # Image artifacts (ephemeral)
-    └── <random>/images/
-```
-
-Benefits:
-- **First review** of a repo: blobless clone (~tens of MB) + fetch PR branches
-- **Subsequent reviews** of the same repo: just `fetch --all` (~seconds) + checkout PR branch
-- **Cross-skill reuse**: if `git-repo-reader` already cached the repo, PR review reuses it
+Path B leverages repos cached by the `git-repo-reader` skill (or previous reviews that used Path B). A lightweight lookup script (`scripts/repo_cache_lookup.py`) checks the shared `git-repo-cache` mapping — read-only, never clones. When the cache hits, the skill just fetches the two PR branches and checks out, avoiding any clone operation.
 
 ### Review Flow
 
@@ -39,28 +30,25 @@ flowchart TD
     C2 --> D
 
     D -->|"Yes - Path A"| E1["git fetch origin + gh pr checkout"]
-    D -->|"No - Path B"| E2["Sync shared repo cache"]
+    D -->|"No"| E2{"Check shared repo cache"}
 
-    E2 --> F1["repo_manager.py sync (blobless clone or fetch --all)"]
-    F1 --> F2["git fetch origin base head branches"]
-    F2 --> F3["gh pr checkout"]
+    E2 -->|"Cache hit - Path B"| F1["git fetch origin base head"]
+    F1 --> F2["gh pr checkout"]
 
-    E1 --> G["Step 4: Gather context - all local reads"]
-    F3 --> G
+    E2 -->|"Cache miss - Path C"| G1["Partial clone to temp dir"]
+    G1 --> G2["Sparse checkout: root files + PR directories"]
+    G2 --> G3["gh pr checkout"]
 
-    G --> G1["Project structure via git ls-tree"]
-    G --> G2["Convention files: AGENTS.md, CLAUDE.md, etc."]
-    G --> G3["Full content of modified files"]
-    G --> G4["Related files referenced in diff"]
-
-    G1 --> H["Step 5-6: Analyze and produce structured review"]
-    G2 --> H
+    E1 --> H["Step 4: Gather context - all local reads"]
+    F2 --> H
     G3 --> H
-    G4 --> H
 
-    H --> I["Step 7: Clean up"]
-    I -->|"Path A"| I1["Restore original branch"]
-    I -->|"Path B"| I2["Reset to default branch (keep cache)"]
+    H --> I["Step 5-6: Analyze and produce structured review"]
+
+    I --> J["Step 7: Clean up"]
+    J -->|"Path A"| J1["Restore original branch"]
+    J -->|"Path B"| J2["Reset to default branch (keep cache)"]
+    J -->|"Path C"| J3["Delete temp directory"]
 ```
 
 ### Data Flow
@@ -70,7 +58,7 @@ sequenceDiagram
     participant User
     participant Skill
     participant gh as GitHub CLI
-    participant RM as repo_manager.py
+    participant Cache as repo_cache_lookup.py
     participant Git as Git (local)
 
     User->>Skill: PR URL / number
@@ -84,93 +72,77 @@ sequenceDiagram
 
     Note over Skill: Determine repo access strategy
 
-    alt Already in target repo
+    alt Already in target repo (Path A)
         Skill->>Git: git fetch origin
         Skill->>Git: gh pr checkout <number>
         Git-->>Skill: Switched to PR branch
-    else Not in target repo
-        Skill->>RM: repo_manager.py sync <repo-url>
-        Note over RM,Git: Blobless clone (first time)<br/>or fetch --all (cached)
-        RM-->>Skill: Local path to cached repo
-        Skill->>Git: git fetch origin base head
-        Skill->>Git: gh pr checkout <number>
-        Git-->>Skill: Switched to PR branch
+    else Check shared cache
+        Skill->>Cache: repo_cache_lookup.py <repo-url>
+        alt Cache hit (Path B)
+            Cache-->>Skill: Local path to cached repo
+            Skill->>Git: git fetch origin base head
+            Skill->>Git: gh pr checkout <number>
+            Git-->>Skill: Switched to PR branch
+        else Cache miss (Path C)
+            Cache-->>Skill: exit 1
+            Skill->>gh: gh repo clone (partial, sparse)
+            gh-->>Git: Partial clone in temp dir
+            Skill->>Git: sparse-checkout set / + PR directories
+            Skill->>Git: gh pr checkout <number>
+            Git-->>Skill: Switched to PR branch
+        end
     end
 
     Note over Skill,Git: All further reads are local
 
     Skill->>Git: git ls-tree (project structure)
-    Note over Git: Uses cached tree objects<br/>No network needed
     Git-->>Skill: Full file tree
 
-    Skill->>Git: Read convention files (AGENTS.md, etc.)
-    Git-->>Skill: File contents (blob fetched on demand)
-
-    Skill->>Git: Read modified files (full content)
-    Git-->>Skill: File contents (blob fetched on demand)
-
-    Skill->>Git: Read related files (if needed)
+    Skill->>Git: Read convention files, modified files, related files
     Git-->>Skill: File contents
 
     Skill->>User: Structured 6-section review
-    
-    Skill->>Git: Reset to default branch (keep cache)
 ```
 
-## Why Blobless Clone + Shared Cache?
+## Why This Hybrid Strategy?
 
-The problem: you need repo context, but you don't want to download a 2 GB monorepo just to review a 10-file PR.
+| Method | Download size (50K-file repo) | Reusable? | When used |
+|--------|------------------------------|-----------|-----------|
+| Path A — already in repo | 0 (just fetch) | N/A | Working in the repo |
+| Path B — shared cache hit | ~KB (fetch 2 branches) | Yes | Repo was cloned by git-repo-reader or previous review |
+| Path C — partial clone | ~5-50 MB (metadata + sparse files) | No (deleted after) | First encounter with the repo |
+| Full clone (not used) | ~2 GB | Yes | Too slow for review |
 
-| Method | What gets downloaded | Typical size (50K-file repo) | Reusable? |
-|--------|---------------------|------------------------------|-----------|
-| Full clone | All commits + all blobs | ~2 GB | Yes |
-| `--depth=1` (shallow) | 1 commit, but **all** blobs | ~500 MB | Partially |
-| `--filter=blob:none` (blobless) | Commits + trees only, blobs on demand | ~5-50 MB | Yes |
-| `--filter=blob:none --sparse` (old approach) | Same + limited working tree | ~5-50 MB | No (was deleted after review) |
-| Per-file `gh api` calls | Only requested files | ~same bytes | No |
-
-Blobless clone + shared cache wins because:
-
-1. **Initial clone is small** — only git metadata (tree objects), no file content
-2. **Full repo structure available** — `git ls-tree`, `git log`, `git diff`, `git blame` all work immediately
-3. **On-demand blob fetch** — reading a file transparently downloads just that blob
-4. **No guessing needed** — unlike sparse checkout, you don't need to predict which directories matter
-5. **Shared cache** — same repo clone serves `git-repo-reader`, PR reviews, and future skills
-6. **Fast repeat reviews** — second review of the same repo is just a `fetch` (~seconds)
+Path B is the sweet spot for repos you work with regularly — near-instant after the first `git-repo-reader` clone. Path C is the safe fallback that works for any repo without waiting for a full clone.
 
 ## Context Gathering Strategy
 
-The skill gathers context at three levels:
+### With full repo (Path A / Path B)
 
-### 1. Project-level context (cheap, always gathered)
+1. **Project structure** via `git ls-tree` — full file tree, no network needed
+2. **Convention files** — read root-level config files directly
+3. **Modified files** — read full content, git auto-fetches blobs on demand
+4. **Related files** — read any file in the repo, auto-fetched transparently
 
-- **File tree** via `git ls-tree` — understand module layout and naming conventions
-- **Convention files** — `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`, `pyproject.toml`, `package.json`, `.editorconfig`, etc.
+### With partial clone (Path C)
 
-### 2. Change-level context (selective)
-
-- **Full file content** of modified files — not just the diff, but the complete file on the PR branch
-- This lets the reviewer see the function a change sits inside, the class structure, nearby code patterns
-- Git auto-fetches only the blobs for files you actually read
-
-### 3. Reference-level context (on-demand)
-
-- If the diff imports from or calls into files not in the PR, just read them directly
-- Git's blobless clone handles this transparently — read the file and git fetches the blob
-- Limited to 2-3 files to avoid scope creep
+1. **Project structure** via `git ls-tree` — full file tree from cached tree objects
+2. **Convention files** — checked out via `sparse-checkout set /` (root-level)
+3. **Modified files** — checked out via sparse-checkout of their directories
+4. **Related files** — add directories to sparse checkout as needed (2-3 max)
 
 ## Ensuring Branch Freshness
 
-A critical concern with cached repos is stale branches leading to inaccurate reviews. The skill addresses this with a **two-layer fetch strategy**:
+A critical concern with cached repos (Path B) is stale branches leading to inaccurate reviews:
 
-1. **`repo_manager.py sync`** — runs `git fetch --all --prune` to refresh all remote refs
-2. **Explicit branch fetch** — `git fetch origin <baseRefName> <headRefName>` to double-ensure the two branches involved in the PR are current
-3. **Remote-tracking refs for comparison** — always uses `origin/<baseRefName>` (not local branches) as the diff base
+1. **Targeted branch fetch** — `git fetch origin <baseRefName> <headRefName>` fetches exactly the two branches the PR needs
+2. **Remote-tracking refs for comparison** — always uses `origin/<baseRefName>` (not local branches) as the diff base
+3. **`gh pr checkout`** — ensures the local PR branch matches the remote HEAD
 
 ## Requirements
 
 - **GitHub CLI (`gh`)** — installed and authenticated
-- **Git 2.25+** — for blobless clone support (most systems have this)
+- **Git 2.25+** — for sparse-checkout support (most systems have this)
 - **`curl`** — for downloading PR screenshots/assets when visual evidence matters
 - Run `skills-check github-code-review-pr` to verify
 
@@ -181,10 +153,6 @@ When PR body/comments/reviews include image links, the skill should proactively 
 - screenshots are part of verification steps (UI proof, tracking proof, offline check), or
 - image content is necessary to validate correctness/risk.
 
-Recommended retrieval order:
-1. `curl -fsSL <image_url> -o <local_file>`
-2. If enterprise auth blocks access, retry with `curl -fsSL --negotiate -u : <image_url> -o <local_file>`
-
 Store image files under a random run dir in `$(realpath "${TMPDIR:-/tmp}")/mythril-skills-cache/github-code-review-pr/`.
 
 Do not store artifacts in ad-hoc paths like `/tmp/pr81_deskcheck/...`.
@@ -192,22 +160,15 @@ Then summarize what each image shows and whether it supports PR claims.
 
 ## Cleaning Up
 
-Two types of cached data exist:
-
 | Type | Location | Lifecycle |
 |---|---|---|
-| **Repo cache** | `mythril-skills-cache/git-repo-cache/` | Long-lived, shared across skills |
+| **Shared repo cache** | `mythril-skills-cache/git-repo-cache/` | Long-lived, managed by `git-repo-reader` |
+| **Temp clones (Path C)** | `mythril-skills-cache/github-code-review-pr/` | Deleted after each review |
 | **Image artifacts** | `mythril-skills-cache/github-code-review-pr/` | Ephemeral, per-review |
 
-Both can be cleaned via:
 ```bash
 skills-clean-cache          # interactive — lists cache contents, asks for confirmation
 skills-clean-cache --force  # delete without asking
-```
-
-Individual repos can be removed via:
-```bash
-python3 scripts/repo_manager.py remove "<repo-url>"
 ```
 
 ## Usage Examples

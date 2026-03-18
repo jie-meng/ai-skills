@@ -186,11 +186,11 @@ def run_git(
 def git_clone(
     clone_url: str, target: Path, branch: str | None = None
 ) -> None:
-    """Clone a repository using blobless clone (all branches)."""
+    """Clone a repository using blobless single-branch clone."""
     target.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["clone", "--filter=blob:none"]
+    cmd = ["clone", "--filter=blob:none", "--single-branch"]
     if branch:
-        cmd += ["--branch", branch, "--single-branch"]
+        cmd += ["--branch", branch]
     cmd += [clone_url, str(target)]
 
     result = run_git(cmd)
@@ -208,12 +208,12 @@ def git_pull(repo_path: Path) -> None:
         raise RuntimeError(f"git pull failed:\n{err}")
 
 
-def git_fetch_all(repo_path: Path) -> None:
-    """Fetch all remote branches and prune deleted ones."""
-    result = run_git(["fetch", "--all", "--prune"], cwd=repo_path)
+def git_fetch(repo_path: Path) -> None:
+    """Fetch latest refs from origin (default branch only, prune stale)."""
+    result = run_git(["fetch", "origin", "--prune"], cwd=repo_path)
     if result.returncode != 0:
         raise RuntimeError(
-            f"git fetch --all failed:\n{result.stderr.strip()}"
+            f"git fetch failed:\n{result.stderr.strip()}"
         )
 
 
@@ -328,14 +328,15 @@ def cmd_clone(url: str, branch: str | None = None) -> None:
 
 
 def cmd_sync(url: str) -> None:
-    """Ensure a repo is cached and all remote refs are up-to-date.
+    """Ensure a repo is cached with a clean working tree.
 
-    If the repo is not yet cached, performs a blobless clone (all branches).
-    If already cached, runs `git fetch --all --prune` to refresh every remote
-    branch ref, then checks out the default branch in a clean state.
+    If the repo is not yet cached, performs a blobless single-branch clone.
+    If already cached, fetches origin to refresh refs, then resets the
+    working tree to a clean state on the default branch.
 
-    Designed for workflows (like PR review) that need arbitrary branches
-    to be current without knowing ahead of time which branches are involved.
+    The caller is responsible for fetching any additional branches it needs
+    (e.g., `git fetch origin <base> <head>` for PR review). This keeps the
+    sync operation fast — only the default branch tracking ref is updated.
 
     Prints the local path on success.
     """
@@ -350,9 +351,9 @@ def cmd_sync(url: str) -> None:
     cached = lookup_entry(url)
     if cached and cached.exists() and (cached / ".git").is_dir():
         log(f"[cache hit] Found cached repo: {key}")
-        log("[sync] Fetching all remote branches...")
+        log("[sync] Fetching origin...")
         try:
-            git_fetch_all(cached)
+            git_fetch(cached)
             log("[sync] Done.")
         except RuntimeError as e:
             log(f"[sync] Fetch failed: {e}")
@@ -381,7 +382,7 @@ def cmd_sync(url: str) -> None:
         log(f"[cleanup] Removing leftover directory: {local_path}")
         shutil.rmtree(local_path, ignore_errors=True)
 
-    log(f"[clone] Cloning {clone_url} (blobless, all branches)...")
+    log(f"[clone] Cloning {clone_url} (blobless, single-branch)...")
     git_clone(clone_url, local_path)
     add_entry(url, local_path)
     log("[clone] Done.")
