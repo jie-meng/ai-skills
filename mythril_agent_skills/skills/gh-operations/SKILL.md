@@ -1,18 +1,14 @@
 ---
 name: gh-operations
 description: >
-  Use GitHub CLI (`gh`) for GitHub issue/PR workflows from terminal. Trigger whenever
-  the user asks to read/write issues, view/create pull requests, add PR comments
-  (including inline line-level review comments), or explicitly asks to use `gh` /
-  GitHub CLI. Typical phrases include "use gh", "gh issue", "gh pr", "创建PR",
-  "看PR", "在PR某行加comment", "行内评论", "对应那一行加评论", "用gh评论PR". For issue/PR/doc
-  links containing important screenshots, proactively retrieve and summarize image
-  evidence when it affects the answer. Prefer
-  `gh` commands (including `gh api` when needed), return clear action summaries,
-  and handle auth/repo/permission errors explicitly. When users provide full
-  issue/PR URLs, pass the URL directly to `gh` (URL-first) instead of rewriting
-  into issue/PR number plus repo flags. For generic local commit/history reads
-  without GitHub API context, prefer plain `git` commands.
+  Use GitHub CLI (`gh`) for operational GitHub workflows from terminal: issue
+  read/write, PR list/view/create, PR status/checks, and posting general or
+  inline PR comments. Trigger when users ask to execute GitHub actions via `gh`,
+  such as "use gh", "gh issue", "gh pr", "创建PR", "查PR状态", "给PR加comment", or
+  provide issue/PR URLs for metadata or actions. This skill is NOT for
+  comprehensive PR code review. If the user asks to review/审查/CR a PR's code
+  quality, risks, or verdict, prefer `github-code-review-pr`. For generic local
+  git history/commit reads without GitHub API context, prefer plain `git`.
 license: Apache-2.0
 ---
 
