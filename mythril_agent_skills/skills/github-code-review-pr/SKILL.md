@@ -4,11 +4,16 @@ description: >
   Comprehensive structured code review for Pull Requests via GitHub CLI (`gh`).
   TRIGGER THIS SKILL whenever the user asks to review a PR — regardless of the URL domain.
   Trigger phrases: 'review PR', 'review this PR', 'PR review', 'PR CR', '审查PR', '看这个PR',
+  '看看这个PR', '帮我看PR', '帮我看这个PR', '帮我看一下这个PR',
   'review pull request', 'help me review', or ANY URL containing '/pull/' with a review request.
-  This skill handles github.com AND GitHub Enterprise (any domain: git.company.com, code.org.io, etc.).
-  CRITICAL: When you see a /pull/ URL, run `gh` commands IMMEDIATELY. NEVER ask the user whether
-  the URL is GitHub or GitLab. NEVER speculate about the platform. Just run `gh` and let it succeed
-  or fail. Only reject URLs whose host literally contains 'gitlab', 'gitee.com', or 'bitbucket.org'.
+  This skill handles github.com AND GitHub Enterprise (any domain — GHE domains are arbitrary:
+  git.company.com, git.corp.au, code.org.io, dev.internal.net, etc.).
+  CRITICAL — ZERO SPECULATION RULE: When you see a /pull/ URL, run `gh` commands IMMEDIATELY.
+  NEVER guess the platform from the domain name. Domains like `git.xxx.com`, `git.xxx.com.au`,
+  `git.company.io` are NOT GitLab — they are commonly GitHub Enterprise. NEVER say "this looks like
+  GitLab" or "this might not be GitHub". Just run `gh` and let it succeed or fail.
+  Only reject URLs whose host literally contains the substring 'gitlab', or exactly matches
+  'gitee.com' or 'bitbucket.org'. Every other domain MUST be attempted with `gh` first.
 license: Apache-2.0
 ---
 
@@ -24,7 +29,7 @@ license: Apache-2.0
 - "help me review this pull request"
 - "use github-code-review-pr skill"
 
-**CRITICAL**: Do NOT pre-filter by URL domain. Do NOT ask the user what platform a URL belongs to. GitHub Enterprise domains can be anything — `git.company.com`, `git.acmecorp.com`, `github.corp.example.com`, `code.org.io`, etc. If the URL contains `/pull/`, trigger this skill, run `gh` commands immediately, and let `gh` CLI sort out platform compatibility. NEVER hesitate, speculate, or ask clarifying questions about the platform.
+**CRITICAL — ZERO SPECULATION RULE**: Do NOT pre-filter by URL domain. Do NOT ask the user what platform a URL belongs to. GitHub Enterprise domains can be literally anything — `git.company.com`, `git.acmecorp.com`, `git.realestate.com.au`, `github.corp.example.com`, `code.org.io`, `dev.internal.net`, etc. A `git.xxx.com` or `git.xxx.com.au` domain is **NOT** an indicator of GitLab — these are extremely common GHE patterns. If the URL contains `/pull/`, trigger this skill, run `gh` commands immediately, and let `gh` CLI sort out platform compatibility. NEVER hesitate, speculate, or ask clarifying questions about the platform.
 
 **This skill reviews remote PRs via `gh` CLI (not local staged changes).**
 For local staged changes, use `code-review-staged` instead.
@@ -74,9 +79,11 @@ Accept PR input in any of these formats:
 
 **NEVER ask the user what platform a URL is.** NEVER speculate about whether a domain is "GitLab", "Bitbucket", or anything else based on the domain name. NEVER say things like "this looks like a GitLab instance" or "is this GitHub Enterprise?" — just run the `gh` command and let it succeed or fail.
 
-1. **Only reject URLs whose host literally contains `gitlab`, or exactly matches `gitee.com` or `bitbucket.org`.** These are the only platforms we can confidently identify as non-GitHub from the URL alone.
+**Common misconception**: Domains starting with `git.` (e.g., `git.company.com`, `git.realestate.com.au`, `git.corp.io`) are NOT indicators of GitLab. These are the most common GitHub Enterprise domain patterns. Do NOT let domain prefixes influence your judgment.
 
-2. **For ALL other URLs — run `gh` commands IMMEDIATELY without any commentary about the platform.** Do NOT think about, discuss, or question the domain. GitHub Enterprise (GHE) domains are completely arbitrary: `git.acmecorp.com`, `git.mycompany.com`, `github.corp.example.com`, `code.company.io`, etc. A domain like `git.company.com` is GitHub Enterprise until `gh` proves otherwise.
+1. **Only reject URLs whose host literally contains the substring `gitlab`, or exactly matches `gitee.com` or `bitbucket.org`.** These are the only platforms we can confidently identify as non-GitHub from the URL alone. Check with simple string matching — `git.realestate.com.au` does NOT contain `gitlab`, so it must NOT be rejected.
+
+2. **For ALL other URLs — run `gh` commands IMMEDIATELY without any commentary about the platform.** Do NOT think about, discuss, or question the domain. GitHub Enterprise (GHE) domains are completely arbitrary: `git.acmecorp.com`, `git.mycompany.com`, `git.realestate.com.au`, `github.corp.example.com`, `code.company.io`, `dev.internal.net`, etc. Any domain that doesn't match the reject list is GitHub Enterprise until `gh` proves otherwise.
 
 3. **Let `gh` CLI be the sole judge.** Jump straight to Step 2 and run the commands. If the host is not a GitHub instance or the user hasn't authenticated, `gh` will return a clear error — handle it then (see Error Handling). Do NOT pre-screen, do NOT ask clarifying questions, do NOT warn about "possible non-GitHub hosts".
 
@@ -459,7 +466,7 @@ skills-clean-cache
 - **`gh` host/auth error on unknown domain**: This is the expected outcome when a non-github.com host hasn't been configured. Tell the user:
   1. This host might be GitHub Enterprise — run `gh auth login --hostname <host>` to authenticate
   2. If it's not GitHub at all, this skill only supports GitHub (including GHE)
-  - **Do NOT assume the host is "GitLab" or any other platform** — just report the `gh` error and let the user decide.
+  - **Do NOT assume the host is "GitLab" or any other platform** — just report the `gh` error and let the user decide. Domains like `git.xxx.com` or `git.xxx.com.au` are commonly GHE, not GitLab.
 - **`gh` not installed**: Report error and suggest running `skills-check github-code-review-pr`
 - **`gh` not authenticated for github.com**: Report error and suggest `gh auth login`
 - **PR not found**: Verify URL/number and repo access
@@ -487,9 +494,10 @@ skills-clean-cache
 **Output**: Context-aware review, restore original branch when done
 
 ### Example 4: GitHub Enterprise URL (unknown domain)
-**User input**: "帮我看一下这个 PR https://git.acmecorp.com/mobile-team/app-ios/pull/16323"
-**Action**: Domain is NOT gitlab/gitee/bitbucket → proceed optimistically → run `gh pr view https://git.acmecorp.com/...` → if auth error, tell user to run `gh auth login --hostname git.acmecorp.com`
+**User input**: "帮我看一下这个 PR https://git.realestate.com.au/mobile-team/app-ios/pull/16323"
+**Action**: Domain `git.realestate.com.au` does NOT contain 'gitlab', does NOT match 'gitee.com' or 'bitbucket.org' → proceed immediately → run `gh pr view https://git.realestate.com.au/...` → if auth error, tell user to run `gh auth login --hostname git.realestate.com.au`
 **Output**: Either full review (if GHE is configured) or clear auth setup instructions
+**WRONG behavior**: Saying "this looks like GitLab" or asking the user what platform it is — NEVER do this
 
 ## Post-Review: Adding Comments to the PR
 
