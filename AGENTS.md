@@ -225,6 +225,8 @@ When adding a new skill, place it in the appropriate category. If it doesn't fit
 
 ## Temporary Files & Cache Convention
 
+See [docs/CACHE.md](./docs/CACHE.md) for the full cache usage guide and examples.
+
 Skills that need to download files, clone repos, or create temp artifacts at runtime MUST use the unified cache directory with a **canonicalized** (symlink-resolved) path:
 
 ```
