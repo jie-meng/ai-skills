@@ -1,12 +1,26 @@
 # mythril-agent-skills
 
-A unified skill management system for multi-agent AI coding assistants. This package provides a curated collection of reusable skills plus a centralized CLI toolkit to install, configure, and maintain them across Github Copilot, Claude Code, Cursor, Codex, Gemini CLI ...
+A unified skill management system for multi-agent AI coding assistants. This toolkit (distributed as a Python package) provides a curated collection of reusable skills plus centralized CLI commands to install, configure, and maintain them across Github Copilot, Claude Code, Cursor, Codex, Gemini CLI ...
 
 ## What is a Skill?
 
 A skill is a prompt/instruction bundle that teaches an AI assistant how to handle a specific type of task. Think of it like a specialized tool: it has a name, a triggering description, and detailed instructions.
 
-**Example**: The `code-review-staged` skill teaches Claude Code to review Git staged changes with a structured 6-section code review format. When you ask "review staged", Claude automatically loads this skill and executes its workflow.
+There are two primary types of skills based on their scope and how they are managed:
+
+| Feature | User-Level Skills (Global) | Project-Level Skills (Local) |
+| :--- | :--- | :--- |
+| **Scope** | Available across all your projects | Confined to a specific project repository |
+| **Portability** | Reusable across different projects on your machine | Moves with that specific project repository |
+| **Use Cases** | General-purpose tools (e.g., Jira integration, code review, Git operations, Figma) | Project-specific rules (e.g., custom UI guidelines, specific build/deploy steps) |
+| **Management** | Installed in your user home directory (`~/.claude/skills`, `~/.cursor/skills`, etc.) | Stored inside the project directory (e.g., `.claude/skills/`, `.github/skills/`) |
+| **Version Control**| Managed centrally via this toolkit | Committed to the project's Git repository and shared with the team |
+
+### How this toolkit fits in
+
+**`mythril-agent-skills` is designed to manage User-Level Skills.** It acts as a centralized CLI toolkit to install, configure, and keep your general-purpose skills synchronized across multiple AI coding assistants on your machine. 
+
+For **Project-Level Skills**, you don't need this installer. Instead, we recommend using the included **[Skill Creator](./mythril_agent_skills/skills/skill-creator/)** skill. Simply invoke the Skill Creator within your project workspace to scaffold a new project-specific skill, and then commit it directly to your version control system so your entire team can benefit from it.
 
 ## Available Skills
 
@@ -38,7 +52,7 @@ Choose the path that fits your needs:
 ### Option A: Use the skills provided (install via pip)
 
 If you just want to install and use existing skills, start here.
-Install the package from PyPI — no need to clone the repository:
+Install it from PyPI — no need to clone the repository:
 
 ```bash
 pip install mythril-agent-skills
