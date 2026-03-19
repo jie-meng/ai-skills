@@ -92,6 +92,7 @@ Removes cached files created by skills at runtime. The cache contains two catego
 ```bash
 skills-clean-cache          # Interactive: list cache contents, choose what to delete
 skills-clean-cache --force  # Delete everything without confirmation
+skills-clean-cache --show-repos  # Optional: include cached repo names and sizes
 ```
 
 ### Backward-compatible wrappers

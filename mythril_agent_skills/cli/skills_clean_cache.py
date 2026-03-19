@@ -17,6 +17,7 @@ categories), and lets the user selectively or fully clean it up.
 Usage:
     skills-clean-cache          # Interactive: list + confirm
     skills-clean-cache --force  # Delete without confirmation
+    skills-clean-cache --show-repos  # Show cached repo list (name + size)
 """
 
 from __future__ import annotations
@@ -97,8 +98,36 @@ def count_repos(repo_cache_path: Path) -> int:
     return sum(1 for p in repos_dir.rglob(".git") if p.is_dir())
 
 
+def list_one_level(path: Path) -> list[Path]:
+    """Return immediate directory contents, files first."""
+    return sorted(
+        path.iterdir(),
+        key=lambda p: (0 if p.is_file() else 1, p.name.lower()),
+    )
+
+
+def list_cached_repos(repo_cache_path: Path) -> list[tuple[str, int]]:
+    """List cached repos as <host>/<owner>/<repo> with their sizes."""
+    repos_root = repo_cache_path / "repos"
+    if not repos_root.exists():
+        return []
+
+    repos: list[tuple[str, int]] = []
+    for repo_dir in repos_root.glob("*/*/*"):
+        if not repo_dir.is_dir():
+            continue
+        if not (repo_dir / ".git").exists():
+            continue
+        repo_rel = repo_dir.relative_to(repos_root).as_posix()
+        repos.append((repo_rel, dir_size(repo_dir)))
+
+    repos.sort(key=lambda item: item[0].lower())
+    return repos
+
+
 def main() -> None:
     force = "--force" in sys.argv
+    show_repos = "--show-repos" in sys.argv
 
     cache_root = get_cache_root()
 
@@ -155,6 +184,36 @@ def main() -> None:
             f"  {DIM}({num_repos} repo{'s' if num_repos != 1 else ''},"
             f" {format_size(repo_size)}){NC}"
         )
+
+        if show_repos:
+            repo_children = list_one_level(repo_cache)
+            for child in repo_children:
+                if child.is_dir():
+                    if child.name == "repos":
+                        cached_repos = list_cached_repos(repo_cache)
+                        repo_count = len(cached_repos)
+                        print(
+                            f"      {child.name}/"
+                            f"  {DIM}({repo_count} repo"
+                            f"{'s' if repo_count != 1 else ''}){NC}"
+                        )
+                        for repo_rel, repo_dir_size in cached_repos:
+                            print(
+                                f"        {repo_rel}/"
+                                f"  {DIM}({format_size(repo_dir_size)}){NC}"
+                            )
+                    else:
+                        items = count_items(child)
+                        print(
+                            f"      {child.name}/"
+                            f"  {DIM}({items} item{'s' if items != 1 else ''}){NC}"
+                        )
+                else:
+                    try:
+                        size = child.stat().st_size
+                    except OSError:
+                        size = 0
+                    print(f"      {child.name}  {DIM}({format_size(size)}){NC}")
         print()
 
     total_size = temp_size + repo_size

@@ -84,6 +84,7 @@ skills-check gh-operations jira figma  # Check specific skills
 ```bash
 skills-clean-cache          # Interactive: list cache, confirm before deleting
 skills-clean-cache --force  # Delete without confirmation
+skills-clean-cache --show-repos  # Optional: show cached repo names and sizes
 ```
 
 The checker will:
