@@ -701,6 +701,8 @@ python3 scripts/review_output_gate.py \
 
 **Only after the gate passes (7b exit code 0), present the review to the user.** Output the review content exactly once — do NOT output a draft version before the gate and then output again after.
 
+**CRITICAL: Present the full 6-section review as-is.** Do NOT summarize, condense, or restructure the review into a shorter format (e.g., "关键问题 / 优点 / 建议" bullet list). The user must see all 6 sections with their original content. The 6-section structure IS the deliverable — not raw material for a summary.
+
 After sending the review, delete the session artifacts:
 
 ```bash
