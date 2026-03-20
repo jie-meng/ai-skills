@@ -653,9 +653,9 @@ Structure the review into these sections:
 
 This step has three sub-steps that MUST be executed in order. **Do NOT send the review to the user until sub-step 7c passes.**
 
-### 7a. Run cleanup
+### 7a. Run cleanup (restore repo, keep session files)
 
-Execute cleanup to restore repo state and remove session artifacts:
+Execute cleanup to restore the repo state (branch checkout / reset). This does **NOT** delete the session `run_dir` — the manifest and command log must remain readable for the gate script in 7b.
 
 ```bash
 python3 scripts/review_runner.py cleanup <RUN_MANIFEST> 2>&1 | tee /tmp/cleanup_log.txt
@@ -677,7 +677,7 @@ cat > /tmp/review_text.md << 'REVIEW_EOF'
 REVIEW_EOF
 ```
 
-2. **Run the gate script:**
+2. **Run the gate script** (the manifest and command log still exist because cleanup preserved them):
 
 ```bash
 python3 scripts/review_output_gate.py \
@@ -697,9 +697,17 @@ python3 scripts/review_output_gate.py \
 3. `CLEANUP_EVIDENCE_PASS` — `[PATH-CLEANUP]` marker is present in cleanup output.
 4. `VERDICT_STATE_PASS` — Verdict is consistent with PR state (no `Request Changes` on merged/closed PRs unless user explicitly asked).
 
-### 7c. Send the review to the user
+### 7c. Send the review and purge session
 
 **Only after the gate passes (7b exit code 0), present the review to the user.** Output the review content exactly once — do NOT output a draft version before the gate and then output again after.
+
+After sending the review, delete the session artifacts:
+
+```bash
+python3 scripts/review_runner.py purge <RUN_MANIFEST>
+```
+
+This removes the `run_dir` (manifest, diff, metadata, command log). The purge is a housekeeping step — if it fails or is skipped, `skills-clean-cache` will clean up later.
 
 ### Fallback: Manual cleanup (ONLY if review_runner.py was not used)
 

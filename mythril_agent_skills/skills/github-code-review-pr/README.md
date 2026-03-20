@@ -35,10 +35,10 @@ python3 scripts/review_template_builder.py \
   --language en
 ```
 
-3. **Cleanup** — restore branches / delete temp dirs, emit `[PATH-CLEANUP]` evidence
+3. **Cleanup** — restore branches, emit `[PATH-CLEANUP]` evidence (keeps session files for gate)
 
 ```bash
-python3 scripts/review_runner.py cleanup "<RUN_MANIFEST>"
+python3 scripts/review_runner.py cleanup "<RUN_MANIFEST>" 2>&1 | tee /tmp/cleanup_log.txt
 ```
 
 4. **Quality gates** — validate review output before sending to user
@@ -47,7 +47,13 @@ python3 scripts/review_runner.py cleanup "<RUN_MANIFEST>"
 python3 scripts/review_output_gate.py \
   --manifest "<RUN_MANIFEST>" \
   --review-text "<REVIEW_TEXT_PATH>" \
-  --cleanup-log "<CLEANUP_LOG_PATH>"
+  --cleanup-log /tmp/cleanup_log.txt
+```
+
+5. **Purge** — delete session artifacts after gate passes
+
+```bash
+python3 scripts/review_runner.py purge "<RUN_MANIFEST>"
 ```
 
 ### What the gates enforce
@@ -79,14 +85,16 @@ flowchart TD
     H --> T["Step 5: review_template_builder.py (skeleton)"]
     T --> I["Step 6: Fill review + analyze"]
 
-    I --> J["review_runner.py cleanup"]
+    I --> J["7a: review_runner.py cleanup (restore repo, keep session)"]
     J -->|"Path A"| J1["Restore original branch"]
     J -->|"Path B"| J2["Reset to default branch (keep cache)"]
-    J -->|"Path C"| J3["Delete temp directory"]
+    J -->|"Path C"| J3["Delete temp clone directory"]
 
-    J --> G["review_output_gate.py (4 gates)"]
-    G -->|"PASS"| K["Send review to user"]
+    J --> G["7b: review_output_gate.py (4 gates)"]
+    G -->|"PASS"| K["7c: Send review to user"]
     G -->|"FAIL"| I
+
+    K --> P["review_runner.py purge (delete session artifacts)"]
 ```
 
 ### Data Flow
@@ -128,13 +136,16 @@ sequenceDiagram
     Skill->>Git: git ls-tree, read modified files, related files
     Git-->>Skill: File contents
 
-    Skill->>Runner: cleanup <manifest>
+    Skill->>Runner: cleanup <manifest> (restore repo, keep session files)
     Runner-->>Skill: [PATH-CLEANUP] evidence
 
     Skill->>Gate: review_output_gate.py (manifest + review + cleanup log)
     Gate-->>Skill: PASS / FAIL (4 gates)
 
     Skill->>User: Structured 6-section review
+
+    Skill->>Runner: purge <manifest> (delete session artifacts)
+    Runner-->>Skill: [PURGE] confirmation
 ```
 
 ## Why This Hybrid Strategy?

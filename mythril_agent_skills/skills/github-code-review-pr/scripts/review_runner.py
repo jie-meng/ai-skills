@@ -453,7 +453,12 @@ def resolve_default_branch(repo_path: Path) -> str:
 
 
 def cleanup_session(manifest_path: Path) -> int:
-    """Execute deterministic cleanup from session manifest."""
+    """Restore repo state and print [PATH-CLEANUP] evidence.
+
+    This does NOT delete the run_dir — the manifest and command log must
+    remain readable so the gate script can validate them afterwards.
+    Call ``purge`` after the gate passes to remove session artifacts.
+    """
     if not manifest_path.exists():
         print(f"[PATH-CLEANUP] skipped - manifest not found: {manifest_path}")
         return 0
@@ -467,7 +472,6 @@ def cleanup_session(manifest_path: Path) -> int:
     selected_path = str(data.get("selected_path", ""))
     repo_workdir = str(data.get("repo_workdir", ""))
     original_branch = str(data.get("original_branch", ""))
-    run_dir = Path(str(data.get("run_dir", "")))
     review_dir = Path(str(data.get("review_dir", "")))
 
     if selected_path == "A":
@@ -515,15 +519,33 @@ def cleanup_session(manifest_path: Path) -> int:
     else:
         print("[PATH-CLEANUP] skipped - unknown SELECTED_PATH")
 
+    return 0
+
+
+def purge_session(manifest_path: Path) -> int:
+    """Delete run_dir session artifacts after the gate has passed."""
+    if not manifest_path.exists():
+        print(f"[PURGE] skipped - manifest not found: {manifest_path}")
+        return 0
+
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        print(f"[PURGE] skipped - invalid manifest JSON: {manifest_path}")
+        return 0
+
+    run_dir = Path(str(data.get("run_dir", "")))
     if run_dir.exists() and run_dir.is_dir():
         shutil.rmtree(run_dir, ignore_errors=True)
-        print(f"[PATH-CLEANUP] Session artifacts removed: {run_dir}")
+        print(f"[PURGE] Session artifacts removed: {run_dir}")
+    else:
+        print("[PURGE] skipped - run_dir not found or already removed")
 
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build CLI parser for prepare/cleanup subcommands."""
+    """Build CLI parser for prepare/cleanup/purge subcommands."""
     parser = argparse.ArgumentParser(description="Guarded PR review runner")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -532,6 +554,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     cleanup_parser = sub.add_parser("cleanup", help="Cleanup review session")
     cleanup_parser.add_argument("manifest_path", help="Path to session manifest.json")
+
+    purge_parser = sub.add_parser("purge", help="Delete session artifacts after gate")
+    purge_parser.add_argument("manifest_path", help="Path to session manifest.json")
     return parser
 
 
@@ -542,7 +567,9 @@ def main() -> None:
 
     if args.command == "prepare":
         raise SystemExit(prepare_session(args.pr_ref))
-    raise SystemExit(cleanup_session(Path(args.manifest_path)))
+    if args.command == "cleanup":
+        raise SystemExit(cleanup_session(Path(args.manifest_path)))
+    raise SystemExit(purge_session(Path(args.manifest_path)))
 
 
 if __name__ == "__main__":
