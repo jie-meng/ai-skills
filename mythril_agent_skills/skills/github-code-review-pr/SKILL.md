@@ -107,11 +107,45 @@ Extract: **owner**, **repo**, **PR number**, and **hostname** (for any non-`gith
 
 ## Step 2: Fetch PR Metadata and Diff
 
-Fetch PR metadata and diff via `gh`. Run these commands concurrently:
+### MANDATORY: Use the bundled runner script
 
-### 2a. PR metadata
+**Do NOT manually run `gh pr view` or `gh pr diff`.** Always use the bundled runner script — it performs Step 2, Step 3 (path selection + checkout), and cleanup wiring in a single deterministic call:
+
 ```bash
-gh pr view <URL_or_NUMBER> --json number,title,body,state,author,baseRefName,headRefName,labels,reviewDecision,additions,deletions,changedFiles,commits,files,comments,reviews,url
+python3 scripts/review_runner.py prepare <URL_or_NUMBER>
+```
+
+Locate the script from known skill install locations (same search pattern as `path_select.py` — check `~/.cursor/skills/`, `~/.claude/skills/`, `~/.copilot/skills/`, `~/.config/opencode/skills/`, `~/.gemini/skills/`, `~/.codex/skills/` under `github-code-review-pr/scripts/review_runner.py`).
+
+This command:
+1. Fetches PR metadata (`gh pr view`) and diff (`gh pr diff`) exactly once
+2. Runs `path_select.py` (A → B → C selection with `[PATH-CHECK]`/`[PATH-SELECTED]` trace)
+3. Handles checkout with fallback (`pull/<PR>/head`)
+4. Saves all outputs to a session manifest
+
+Machine-readable output lines:
+- `RUN_MANIFEST=<path>` — session manifest JSON (needed for cleanup and gate scripts)
+- `PR_VIEW_JSON_PATH=<path>` — saved PR metadata JSON file
+- `PR_DIFF_PATH=<path>` — saved PR diff file
+- `SELECTED_PATH=A|B|C` — which path was selected
+- `REPO_WORKDIR=<path>` — local repo directory (empty if diff-only)
+- `PR_STATE=OPEN|CLOSED|MERGED` — PR state
+- `CONTEXT_MODE=full_repo|diff_only` — whether full repo context is available
+- `CONTEXT_LIMITATION=<message>` — explanation when context is limited
+
+**After `review_runner.py prepare` succeeds:**
+- Read PR metadata from `PR_VIEW_JSON_PATH` (do NOT re-run `gh pr view`)
+- Read PR diff from `PR_DIFF_PATH` (do NOT re-run `gh pr diff`)
+- Skip Step 3 entirely — path selection and checkout are already done
+- Save `RUN_MANIFEST` for use in Step 6 gate and Step 7 cleanup
+
+### Fallback: Manual commands (ONLY if review_runner.py is not found)
+
+If and only if `review_runner.py` cannot be located at any install path, fall back to manual commands. **You MUST still run `path_select.py` before any clone/fetch** (see Step 3).
+
+#### 2a. PR metadata
+```bash
+GH_PAGER=cat gh pr view <URL_or_NUMBER> --json number,title,body,state,author,baseRefName,headRefName,labels,reviewDecision,additions,deletions,changedFiles,commits,files,comments,reviews,url
 ```
 
 Key fields:
@@ -122,23 +156,12 @@ Key fields:
 - `comments`, `reviews` — existing discussion context
 - `url` — used to extract `owner/repo`
 
-### 2b. PR diff
+#### 2b. PR diff
 ```bash
-gh pr diff <URL_or_NUMBER>
-```
-
-### 2b.1 Non-interactive execution (no pager lock)
-
-Always disable interactive paging for review commands:
-
-```bash
-GH_PAGER=cat gh pr view <URL_or_NUMBER> --json number,title,body,state,author,baseRefName,headRefName,labels,reviewDecision,additions,deletions,changedFiles,commits,files,comments,reviews,url
 GH_PAGER=cat gh pr diff <URL_or_NUMBER>
 ```
 
-Do NOT rely on interactive `less`/pager behavior during tool execution.
-
-### 2b.2 Single-fetch rule (avoid repeated network calls)
+#### 2b.1 Single-fetch rule (avoid repeated network calls)
 
 - Fetch metadata and diff once, then reuse the captured output throughout the review.
 - Do NOT re-run `gh pr diff`/`gh pr view` unless output is missing/corrupted or PR head changed during review.
@@ -207,7 +230,13 @@ If image retrieval fails, report the exact reason and ask for one targeted unblo
 
 The goal is to have repo context available locally so context gathering is just file reads — no per-file API requests. Try these paths **in order** — pick the first one that applies.
 
-### Path Selection Script (MANDATORY — run first, before any clone or fetch)
+### Skip condition: If `review_runner.py prepare` was used in Step 2
+
+**Skip this entire Step 3.** The runner already executed path selection, checkout, and fallback handling. Use the `SELECTED_PATH`, `REPO_WORKDIR`, and `CONTEXT_MODE` values from the runner output and proceed directly to Step 4.
+
+The rest of Step 3 below is the **manual fallback path** — only execute it when `review_runner.py` was NOT available and you used manual Step 2 commands.
+
+### Path Selection Script (MANDATORY when not using review_runner.py — run first, before any clone or fetch)
 
 **Do NOT write inline path-check logic.** Instead, run the bundled `path_select.py` script. It checks A → B → C in order and prints `[PATH-CHECK]` / `[PATH-SELECTED]` lines as it runs — guaranteeing the trace appears in the execution log at decision time, not as prose in the final review output.
 
@@ -531,22 +560,22 @@ Run this final check before sending the review:
 3. If investigation shows "not an issue", keep only the final conclusion and delete the earlier suspicion from issue lists.
 4. Ensure the verdict (`Approve` / `Request Changes` / `Comment`) matches the final issue severity.
 
-### Final pre-flight checklist (MANDATORY, PASS/FAIL)
+### Review output structure (MANDATORY — use exactly these 6 sections)
 
-Before sending user-visible review output, verify all checks below. If any check fails, fix it first.
+**Do NOT create ad-hoc section structures** like "Strengths / Issues / What's Working Well". The review MUST use exactly the 6 sections defined below, in order. Every review must include all 6 sections.
 
-1. `NO_SPECULATION_PASS`
-   - No platform-guessing text appears before the first `gh` command.
-   - Forbidden examples: "not a GitHub URL", "looks like GitLab", "possibly self-hosted".
-2. `SINGLE_FETCH_PASS`
-   - `gh pr view` and `gh pr diff` were each executed once for this review run.
-   - If re-fetch happened, a `[REFETCH-REASON] ...` line is present and valid.
-3. `CLEANUP_EVIDENCE_PASS`
-   - Shell output includes a `[PATH-CLEANUP] ...` line emitted by cleanup script `echo`.
-   - Do not replace this with prose-only cleanup claims.
-4. `VERDICT_STATE_PASS`
-   - If PR state is `MERGED` or `CLOSED`, default verdict is `Comment` (retrospective feedback), not `Request Changes`.
-   - Use `Request Changes` on merged/closed PR only when user explicitly asks for a hypothetical pre-merge gate verdict.
+**RECOMMENDED: Generate review skeleton first.** Before filling in review content, generate a deterministic skeleton to reduce structural drift:
+
+```bash
+python3 scripts/review_template_builder.py \
+  --manifest <RUN_MANIFEST> \
+  --output <REVIEW_DRAFT_PATH> \
+  --language en
+```
+
+Use the generated skeleton as the structural foundation for your review. Fill in each `[fill]` placeholder with evidence from the PR metadata, diff, and repo context. Do NOT invent a different section structure.
+
+**CRITICAL: Do NOT send the review to the user yet.** After completing all 6 sections, you MUST proceed to Step 7 (cleanup + gate) before presenting any review output. Write the review content to a temp file and continue to Step 7.
 
 Structure the review into these sections:
 
@@ -618,11 +647,63 @@ Structure the review into these sections:
 - Overall assessment: **Approve** / **Request Changes** / **Comment**
 - Brief summary of key findings and suggestion priorities
 
-## Step 7: Clean Up
+## Step 7: Clean Up, Gate, and Send
 
 **This step is MANDATORY — always execute it, even if the review encountered errors.**
 
-### 7a. Failure-safe cleanup wiring (MANDATORY)
+This step has three sub-steps that MUST be executed in order. **Do NOT send the review to the user until sub-step 7c passes.**
+
+### 7a. Run cleanup
+
+Execute cleanup to restore repo state and remove session artifacts:
+
+```bash
+python3 scripts/review_runner.py cleanup <RUN_MANIFEST> 2>&1 | tee /tmp/cleanup_log.txt
+```
+
+This prints `[PATH-CLEANUP] ...` evidence lines. **Save the stdout to a file** — it is needed for the gate script in 7b.
+
+If `review_runner.py` was NOT available (manual Step 2/3 path), use the manual cleanup shell function defined in "Fallback: Manual cleanup" below instead.
+
+### 7b. Run the quality gate (MANDATORY)
+
+**You MUST run the gate script before presenting review output to the user.** Do NOT skip this step. Do NOT perform the checklist mentally — the script enforces it programmatically.
+
+1. **Save the review text to a file** (the complete 6-section review you prepared in Step 6):
+
+```bash
+cat > /tmp/review_text.md << 'REVIEW_EOF'
+<paste your complete review content here>
+REVIEW_EOF
+```
+
+2. **Run the gate script:**
+
+```bash
+python3 scripts/review_output_gate.py \
+  --manifest <RUN_MANIFEST> \
+  --review-text /tmp/review_text.md \
+  --cleanup-log /tmp/cleanup_log.txt
+```
+
+3. **Interpret the result:**
+   - Exit code `0` → all gates pass → proceed to 7c (send the review)
+   - Exit code non-zero → read the FAIL details, fix the violations in your review text, and re-run the gate
+
+**If `review_output_gate.py` is not found**, perform this checklist manually and document each PASS/FAIL:
+
+1. `NO_SPECULATION_PASS` — No platform-guessing text appears before the first `gh` command.
+2. `SINGLE_FETCH_PASS` — `gh pr view` and `gh pr diff` were each executed exactly once.
+3. `CLEANUP_EVIDENCE_PASS` — `[PATH-CLEANUP]` marker is present in cleanup output.
+4. `VERDICT_STATE_PASS` — Verdict is consistent with PR state (no `Request Changes` on merged/closed PRs unless user explicitly asked).
+
+### 7c. Send the review to the user
+
+**Only after the gate passes (7b exit code 0), present the review to the user.** Output the review content exactly once — do NOT output a draft version before the gate and then output again after.
+
+### Fallback: Manual cleanup (ONLY if review_runner.py was not used)
+
+#### Failure-safe cleanup wiring (MANDATORY for manual path)
 
 Register cleanup right after Step 3 path selection, not at the end of the review flow.
 Use an `EXIT` trap (or equivalent in non-shell tools) so cleanup runs on success, command failure, or early return.

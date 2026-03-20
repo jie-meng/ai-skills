@@ -14,6 +14,51 @@ This skill uses a **three-path strategy** that adapts to what's available, from 
 | **B** | Repo found in shared cache (`git-repo-cache`) | Fast (fetch 2 branches) | Full repo |
 | **C** | Repo not cached anywhere | Moderate (partial clone) | Targeted files only |
 
+## Guarded Runner (MANDATORY)
+
+The skill uses bundled Python scripts to enforce deterministic behavior and prevent prompt drift. These scripts are **mandatory** — the SKILL.md instructs the agent to use them as the primary execution path, with manual `gh` commands only as a fallback when scripts are unavailable.
+
+### Execution flow
+
+1. **Prepare session** — single fetch + path select + checkout fallback (replaces manual Step 2 + Step 3)
+
+```bash
+python3 scripts/review_runner.py prepare "<PR_URL_OR_NUMBER>"
+```
+
+2. **Generate review skeleton** — deterministic 6-section template with PR metadata pre-filled
+
+```bash
+python3 scripts/review_template_builder.py \
+  --manifest "<RUN_MANIFEST>" \
+  --output "<REVIEW_DRAFT_PATH>" \
+  --language en
+```
+
+3. **Cleanup** — restore branches / delete temp dirs, emit `[PATH-CLEANUP]` evidence
+
+```bash
+python3 scripts/review_runner.py cleanup "<RUN_MANIFEST>"
+```
+
+4. **Quality gates** — validate review output before sending to user
+
+```bash
+python3 scripts/review_output_gate.py \
+  --manifest "<RUN_MANIFEST>" \
+  --review-text "<REVIEW_TEXT_PATH>" \
+  --cleanup-log "<CLEANUP_LOG_PATH>"
+```
+
+### What the gates enforce
+
+| Gate | What it checks |
+|---|---|
+| `NO_SPECULATION_PASS` | No forbidden platform-guessing phrases in output |
+| `SINGLE_FETCH_PASS` | `gh pr view` and `gh pr diff` each executed exactly once |
+| `CLEANUP_EVIDENCE_PASS` | `[PATH-CLEANUP]` marker present in cleanup logs |
+| `VERDICT_STATE_PASS` | Verdict is consistent with PR state (e.g., no "Request Changes" on merged PRs) |
+
 ### Shared Cache Integration
 
 Path B leverages repos cached by the `git-repo-reader` skill (or previous reviews that used Path B). The bundled path selector (`scripts/path_select.py`) checks A/B/C in order, prints explicit `[PATH-CHECK]` / `[PATH-SELECTED]` trace lines, and reads the shared `git-repo-cache` mapping (read-only, never clones). When the cache hits, the skill fetches the two PR branches and checks out by `headRefName`, avoiding any clone operation.
@@ -23,29 +68,25 @@ Path B leverages repos cached by the `git-repo-reader` skill (or previous review
 ```mermaid
 flowchart TD
     A["User provides PR URL or number"] --> B["Step 1: Parse PR reference"]
-    B --> C["Step 2: Fetch PR metadata + diff via gh"]
-    C --> C1["gh pr view (metadata)"]
-    C --> C2["gh pr diff"]
-    C1 --> D["Step 3: Run path_select.py (A/B/C + trace)"]
-    C2 --> D
+    B --> C["Step 2+3: review_runner.py prepare"]
+    C --> C1["gh pr view + gh pr diff (once)"]
+    C1 --> C2["path_select.py (A/B/C trace)"]
+    C2 --> C3["Checkout + fallback (pull/PR/head)"]
+    C3 --> C4["Emit manifest + machine-readable outputs"]
 
-    D -->|"Path A"| E1["git fetch origin base head + git checkout headRefName"]
-    D -->|"Path B"| F1["cd REPO_PATH + git fetch origin base head + git checkout headRefName"]
+    C4 --> H["Step 4: Gather context — read files from REPO_WORKDIR"]
 
-    D -->|"Path C"| G1["Partial clone to temp dir"]
-    G1 --> G2["Sparse checkout: root files + PR directories"]
-    G2 --> G3["git fetch origin head + git checkout headRefName"]
+    H --> T["Step 5: review_template_builder.py (skeleton)"]
+    T --> I["Step 6: Fill review + analyze"]
 
-    E1 --> H["Step 4: Gather context - all local reads"]
-    F1 --> H
-    G3 --> H
-
-    H --> I["Step 5-6: Analyze and produce structured review"]
-
-    I --> J["Step 7: Clean up"]
+    I --> J["review_runner.py cleanup"]
     J -->|"Path A"| J1["Restore original branch"]
     J -->|"Path B"| J2["Reset to default branch (keep cache)"]
     J -->|"Path C"| J3["Delete temp directory"]
+
+    J --> G["review_output_gate.py (4 gates)"]
+    G -->|"PASS"| K["Send review to user"]
+    G -->|"FAIL"| I
 ```
 
 ### Data Flow
@@ -53,52 +94,45 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant User
-    participant Skill
+    participant Skill as AI Agent
+    participant Runner as review_runner.py
     participant gh as GitHub CLI
     participant PathSel as path_select.py
     participant Cache as git-repo-cache
     participant Git as Git (local)
+    participant Gate as review_output_gate.py
 
     User->>Skill: PR URL / number
-    
-    par Fetch in parallel
-        Skill->>gh: gh pr view --json (metadata)
-        gh-->>Skill: title, body, files, commits, reviews
-        Skill->>gh: gh pr diff (unified diff)
-        gh-->>Skill: diff output
-    end
 
-    Note over Skill: Determine repo access strategy
-    Skill->>PathSel: path_select.py <repo-url> <current-repo>
+    Skill->>Runner: prepare <PR_URL>
+    Runner->>gh: gh pr view --json (metadata)
+    gh-->>Runner: title, body, files, commits, reviews
+    Runner->>gh: gh pr diff (unified diff)
+    gh-->>Runner: diff output
+    Runner->>PathSel: path_select.py <repo-url> <current-repo>
     PathSel->>Cache: read repo_map.json
     Cache-->>PathSel: cache hit / miss
-    PathSel-->>Skill: PATH-CHECK lines + SELECTED_PATH/REPO_PATH
+    PathSel-->>Runner: SELECTED_PATH + REPO_PATH
 
-    alt Path A
-        Skill->>Git: git fetch origin base head
-        Skill->>Git: git checkout <headRefName>
-        Git-->>Skill: Switched to PR branch
-    else Path B
-        Skill->>Git: cd REPO_PATH
-        Skill->>Git: git fetch origin base head
-        Skill->>Git: git checkout <headRefName>
-        Git-->>Skill: Switched to PR branch
+    alt Path A/B
+        Runner->>Git: git fetch + git checkout <headRefName>
     else Path C
-        Skill->>gh: gh repo clone (partial, sparse)
-        gh-->>Git: Partial clone in temp dir
-        Skill->>Git: sparse-checkout set / + PR directories
-        Skill->>Git: git fetch origin head
-        Skill->>Git: git checkout <headRefName>
-        Git-->>Skill: Switched to PR branch
+        Runner->>gh: gh repo clone (blobless, sparse)
+        Runner->>Git: git checkout <headRefName>
     end
 
-    Note over Skill,Git: All further reads are local
+    Runner-->>Skill: manifest + PR_VIEW_JSON + PR_DIFF + REPO_WORKDIR
 
-    Skill->>Git: git ls-tree (project structure)
-    Git-->>Skill: Full file tree
+    Note over Skill,Git: All further reads are local file reads
 
-    Skill->>Git: Read convention files, modified files, related files
+    Skill->>Git: git ls-tree, read modified files, related files
     Git-->>Skill: File contents
+
+    Skill->>Runner: cleanup <manifest>
+    Runner-->>Skill: [PATH-CLEANUP] evidence
+
+    Skill->>Gate: review_output_gate.py (manifest + review + cleanup log)
+    Gate-->>Skill: PASS / FAIL (4 gates)
 
     Skill->>User: Structured 6-section review
 ```
