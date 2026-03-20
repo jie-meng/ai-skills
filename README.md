@@ -1,5 +1,7 @@
 # mythril-agent-skills
 
+English | [中文](./README.zh-CN.md)
+
 A unified skill management system for multi-agent AI coding assistants. This toolkit (distributed as a Python package) provides a curated collection of reusable skills plus centralized CLI commands to install, configure, and maintain them across Github Copilot, Claude Code, Cursor, Codex, Gemini CLI ...
 
 ## What is a Skill?
@@ -27,21 +29,21 @@ For **Project-Level Skills**, you don't need this installer. Instead, we recomme
 | Skill | Description | Use When | Dependencies |
 |---|---|---|---|
 | **Meta** | | | |
-| [Skill Creator](./mythril_agent_skills/skills/skill-creator/) | Create skills/prompts for any AI platform. Includes drafting, test case generation, evaluation, benchmarking, description optimization. | Create a new skill, improve triggering, or benchmark skill performance | — |
+| [Skill Creator](./mythril_agent_skills/skills/skill-creator/) | Create skills/prompts for any AI platform. Includes drafting, test case generation, evaluation, benchmarking, description optimization. | "create a new skill for Cursor" | — |
 | **Code Review** | | | |
-| [Code Review (Staged)](./mythril_agent_skills/skills/code-review-staged/) | Context-aware code review for Git staged changes. Reads related files for validation, auto-generates and copies commit message to clipboard. | "review staged", "staged code review", "check staged", "look at staged", or "review staged code" | `git` CLI |
-| [Code Review (Local Branch Diff)](./mythril_agent_skills/skills/branch-diff-review/) | Context-aware code review for branch differences using pure local git operations. No platform API needed — works with any git repo (GitHub, GitLab, Gitee, Bitbucket, self-hosted, etc.). | "branch diff review", "branch review", "review feat/xxx to main", "compare branches for review" | `git` CLI |
-| [Code Review (Github PR)](./mythril_agent_skills/skills/github-code-review-pr/) | Context-aware code review for Pull Requests via `gh` CLI. Supports github.com and GitHub Enterprise (any domain). Uses partial clone and sparse checkout for deep repo context. | PR URL (e.g., contains `/pull/`) + explicit review request; host does not contain gitlab gitee bitbucket | `git` CLI, `gh` CLI |
+| [Code Review (Staged)](./mythril_agent_skills/skills/code-review-staged/) | Context-aware code review for Git staged changes. Reads related files for validation, auto-generates and copies commit message to clipboard. | "review staged changes" | `git` CLI |
+| [Code Review (Local Branch Diff)](./mythril_agent_skills/skills/branch-diff-review/) | Context-aware code review for branch differences using pure local git operations. No platform API needed — works with any git repo (GitHub, GitLab, Gitee, Bitbucket, self-hosted, etc.). | "review feat/123 into main" | `git` CLI |
+| [Code Review (Github PR)](./mythril_agent_skills/skills/github-code-review-pr/) | Context-aware code review for Pull Requests via `gh` CLI. Supports github.com and GitHub Enterprise (any domain). Uses partial clone and sparse checkout for deep repo context. | "review this PR: https://github.com/xxx/yyy/pull/100" | `git` CLI, `gh` CLI |
 | **Git & GitHub** | | | |
-| [Git Repo Reader](./mythril_agent_skills/skills/git-repo-reader/) | Clone, cache, and read any git repository from any hosting platform (GitHub, GitLab, Gitee, Bitbucket, self-hosted, etc.) for code exploration and analysis. Caches repos across sessions for reuse. | "look at this repo", "read this repo", "how does this repo implement X", git clone URL + code question | `git` CLI |
-| [GH Operations](./mythril_agent_skills/skills/gh-operations/) | Use GitHub CLI (`gh`) for GitHub issue/PR workflows: read/write issues, inspect/create pull requests, and add PR comments (including inline line-level review comments). | "use gh", "gh issue", "gh pr", "comment on this PR line", or "add an inline PR comment" | `gh` CLI |
+| [Git Repo Reader](./mythril_agent_skills/skills/git-repo-reader/) | Clone, cache, and read any git repository from any hosting platform (GitHub, GitLab, Gitee, Bitbucket, self-hosted, etc.) for code exploration and analysis. Caches repos across sessions for reuse. | "look at this repo: https://github.com/xxx/yyy" | `git` CLI |
+| [GH Operations](./mythril_agent_skills/skills/gh-operations/) | Use GitHub CLI (`gh`) for GitHub issue/PR workflows: read/write issues, inspect/create pull requests, and add PR comments (including inline line-level review comments). | "look at this issue: https://github.com/xxx/yyy/issues/18331" | `gh` CLI |
 | **API Integrations** | | | |
-| [Jira](./mythril_agent_skills/skills/jira/) | Use Jira REST API (via bundled Python script) for issue, sprint, and board workflows. No CLI tools needed. | "jira issue", "jira card", "jira ticket", issue key (PROJ-123), or Jira URL | `ATLASSIAN_API_TOKEN`, `ATLASSIAN_USER_EMAIL`, `ATLASSIAN_BASE_URL` |
-| [Confluence](./mythril_agent_skills/skills/confluence/) | Use Confluence REST API (via bundled Python script) for page, space, comment, and label workflows. No CLI tools needed. | "confluence page", "wiki page", "search confluence", "create wiki page", or Confluence URL | `ATLASSIAN_API_TOKEN`, `ATLASSIAN_USER_EMAIL`, `ATLASSIAN_BASE_URL` |
-| [Figma](./mythril_agent_skills/skills/figma/) | Extract design specs from Figma files for implementation. Covers layout, colors, typography, component specs, auto-triggering on Figma links. | Figma URL, "implement this design", "what does the design look like", "colors/spacing/fonts from design", "according to Figma" | `FIGMA_ACCESS_TOKEN` |
+| [Jira](./mythril_agent_skills/skills/jira/) | Use Jira REST API (via bundled Python script) for issue, sprint, and board workflows. No CLI tools needed. | "look at this Jira ticket: https://yourorg.atlassian.net/browse/PROJ-123" | `ATLASSIAN_API_TOKEN`, `ATLASSIAN_USER_EMAIL`, `ATLASSIAN_BASE_URL` |
+| [Confluence](./mythril_agent_skills/skills/confluence/) | Use Confluence REST API (via bundled Python script) for page, space, comment, and label workflows. No CLI tools needed. | "look at this Confluence page: https://yourorg.atlassian.net/wiki/spaces/XX/pages/123" | `ATLASSIAN_API_TOKEN`, `ATLASSIAN_USER_EMAIL`, `ATLASSIAN_BASE_URL` |
+| [Figma](./mythril_agent_skills/skills/figma/) | Extract design specs from Figma files for implementation. Covers layout, colors, typography, component specs, auto-triggering on Figma links. | "what does this Figma design look like: https://figma.com/file/xxx" | `FIGMA_ACCESS_TOKEN` |
 | **Media Processing** | | | |
-| [ImageMagick](./mythril_agent_skills/skills/imagemagick/) | Process and manipulate images via ImageMagick CLI. Supports resizing, format conversion, cropping, thumbnails, effects, watermarks, batch processing, and metadata extraction. | "resize image", "convert to webp", "image thumbnail", "batch resize", "compress image", "add watermark", "imagemagick" | `magick` CLI |
-| [FFmpeg](./mythril_agent_skills/skills/ffmpeg/) | Process and manipulate video and audio files via FFmpeg CLI. Supports transcoding, format conversion, trimming, merging, resizing, compression, extracting audio, subtitles, GIF creation, and audio format conversion (MP3, WAV, PCM, OGG, AAC, FLAC, OPUS). | "convert video", "compress video", "trim video", "extract audio", "mp3 to wav", "convert audio", "video to gif", "ffmpeg" | `ffmpeg` CLI |
+| [ImageMagick](./mythril_agent_skills/skills/imagemagick/) | Process and manipulate images via ImageMagick CLI. Supports resizing, format conversion, cropping, thumbnails, effects, watermarks, batch processing, and metadata extraction. | "resize photo.jpg to 800x600" | `magick` CLI |
+| [FFmpeg](./mythril_agent_skills/skills/ffmpeg/) | Process and manipulate video and audio files via FFmpeg CLI. Supports transcoding, format conversion, trimming, merging, resizing, compression, extracting audio, subtitles, GIF creation, and audio format conversion (MP3, WAV, PCM, OGG, AAC, FLAC, OPUS). | "convert video.mov to mp4" | `ffmpeg` CLI |
 
 ---
 
