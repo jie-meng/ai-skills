@@ -18,7 +18,7 @@ There are two primary types of skills based on their scope and how they are mana
 
 ### How this toolkit fits in
 
-**`mythril-agent-skills` is designed to manage User-Level Skills.** It acts as a centralized CLI toolkit to install, configure, and keep your general-purpose skills synchronized across multiple AI coding assistants on your machine. 
+**`mythril-agent-skills` is designed to manage User-Level Skills.** It acts as a centralized CLI toolkit to install, configure, and keep your general-purpose skills synchronized across multiple AI coding assistants on your machine.
 
 For **Project-Level Skills**, you don't need this installer. Instead, we recommend using the included **[Skill Creator](./mythril_agent_skills/skills/skill-creator/)** skill. Simply invoke the Skill Creator within your project workspace to scaffold a new project-specific skill, and then commit it directly to your version control system so your entire team can benefit from it.
 
@@ -31,7 +31,7 @@ For **Project-Level Skills**, you don't need this installer. Instead, we recomme
 | **Code Review** | | | |
 | [Code Review (Staged)](./mythril_agent_skills/skills/code-review-staged/) | Context-aware code review for Git staged changes. Reads related files for validation, auto-generates and copies commit message to clipboard. | "review staged", "staged code review", "check staged", "look at staged", or "review staged code" | `git` CLI |
 | [Code Review (Local Branch Diff)](./mythril_agent_skills/skills/branch-diff-review/) | Context-aware code review for branch differences using pure local git operations. No platform API needed — works with any git repo (GitHub, GitLab, Gitee, Bitbucket, self-hosted, etc.). | "branch diff review", "branch review", "review feat/xxx to main", "compare branches for review" | `git` CLI |
-| [Code Review (Github PR)](./mythril_agent_skills/skills/github-code-review-pr/) | Context-aware code review for Pull Requests via `gh` CLI. Supports github.com and GitHub Enterprise (any domain). Uses partial clone and sparse checkout for deep repo context. | "review PR", "PR review", any URL containing `/pull/` with a review request | `git` CLI, `gh` CLI |
+| [Code Review (Github PR)](./mythril_agent_skills/skills/github-code-review-pr/) | Context-aware code review for Pull Requests via `gh` CLI. Supports github.com and GitHub Enterprise (any domain). Uses partial clone and sparse checkout for deep repo context. | PR URL (e.g., contains `/pull/`) + explicit review request; not for GitLab/Gitee/Bitbucket | `git` CLI, `gh` CLI |
 | **Git & GitHub** | | | |
 | [Git Repo Reader](./mythril_agent_skills/skills/git-repo-reader/) | Clone, cache, and read any git repository from any hosting platform (GitHub, GitLab, Gitee, Bitbucket, self-hosted, etc.) for code exploration and analysis. Caches repos across sessions for reuse. | "look at this repo", "read this repo", "how does this repo implement X", git clone URL + code question | `git` CLI |
 | [GH Operations](./mythril_agent_skills/skills/gh-operations/) | Use GitHub CLI (`gh`) for GitHub issue/PR workflows: read/write issues, inspect/create pull requests, and add PR comments (including inline line-level review comments). | "use gh", "gh issue", "gh pr", "comment on this PR line", or "add an inline PR comment" | `gh` CLI |

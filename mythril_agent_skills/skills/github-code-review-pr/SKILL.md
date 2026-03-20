@@ -1,15 +1,15 @@
 ---
 name: github-code-review-pr
 description: >
-  Comprehensive Pull Request code review via GitHub CLI (`gh`). Trigger whenever
-  the user asks to review/审查/CR a PR, requests code-quality or risk analysis,
-  asks for actionable findings, or wants an Approve/Request Changes/Comment
-  verdict. Trigger phrases include "review PR", "review this PR", "PR review",
-  "PR CR", "审查PR", "帮我看PR", "帮我看一下这个PR", "review pull request", and
-  review requests with `/pull/` URLs. Supports github.com and GitHub Enterprise;
-  do not speculate by domain, run `gh` first and handle errors from `gh`.
-  This skill is for deep review output, not routine PR operations. For
-  operational actions (list/status/create/comment), prefer `gh-operations`.
+  Comprehensive Pull Request code review via GitHub CLI (`gh`). Trigger ONLY
+  when the user provides a URL, the URL is identified as a PR (e.g., contains
+  `/pull/`), the host is NOT GitLab/Gitee/Bitbucket (host contains `gitlab` or
+  equals `gitee.com` or `bitbucket.org`), and the user asks to
+  review/审查/评审/CR or requests code-quality or risk analysis. The user does
+  not need to say "PR" explicitly. Supports github.com and GitHub Enterprise;
+  do not speculate by domain, run `gh` first and handle errors from `gh`. This
+  skill is for deep review output, not routine PR operations. For operational
+  actions (list/status/create/comment), prefer `gh-operations`.
 license: Apache-2.0
 ---
 
