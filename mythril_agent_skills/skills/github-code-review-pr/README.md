@@ -16,7 +16,7 @@ This skill uses a **three-path strategy** that adapts to what's available, from 
 
 ### Shared Cache Integration
 
-Path B leverages repos cached by the `git-repo-reader` skill (or previous reviews that used Path B). A lightweight lookup script (`scripts/repo_cache_lookup.py`) checks the shared `git-repo-cache` mapping — read-only, never clones. When the cache hits, the skill just fetches the two PR branches and checks out, avoiding any clone operation.
+Path B leverages repos cached by the `git-repo-reader` skill (or previous reviews that used Path B). The bundled path selector (`scripts/path_select.py`) checks A/B/C in order, prints explicit `[PATH-CHECK]` / `[PATH-SELECTED]` trace lines, and reads the shared `git-repo-cache` mapping (read-only, never clones). When the cache hits, the skill fetches the two PR branches and checks out by `headRefName`, avoiding any clone operation.
 
 ### Review Flow
 
@@ -26,21 +26,18 @@ flowchart TD
     B --> C["Step 2: Fetch PR metadata + diff via gh"]
     C --> C1["gh pr view (metadata)"]
     C --> C2["gh pr diff"]
-    C1 --> D{"Step 3: Already inside the target repo?"}
+    C1 --> D["Step 3: Run path_select.py (A/B/C + trace)"]
     C2 --> D
 
-    D -->|"Yes - Path A"| E1["git fetch origin + gh pr checkout"]
-    D -->|"No"| E2{"Check shared repo cache"}
+    D -->|"Path A"| E1["git fetch origin base head + git checkout headRefName"]
+    D -->|"Path B"| F1["cd REPO_PATH + git fetch origin base head + git checkout headRefName"]
 
-    E2 -->|"Cache hit - Path B"| F1["git fetch origin base head"]
-    F1 --> F2["gh pr checkout"]
-
-    E2 -->|"Cache miss - Path C"| G1["Partial clone to temp dir"]
+    D -->|"Path C"| G1["Partial clone to temp dir"]
     G1 --> G2["Sparse checkout: root files + PR directories"]
-    G2 --> G3["gh pr checkout"]
+    G2 --> G3["git fetch origin head + git checkout headRefName"]
 
     E1 --> H["Step 4: Gather context - all local reads"]
-    F2 --> H
+    F1 --> H
     G3 --> H
 
     H --> I["Step 5-6: Analyze and produce structured review"]
@@ -58,7 +55,8 @@ sequenceDiagram
     participant User
     participant Skill
     participant gh as GitHub CLI
-    participant Cache as repo_cache_lookup.py
+    participant PathSel as path_select.py
+    participant Cache as git-repo-cache
     participant Git as Git (local)
 
     User->>Skill: PR URL / number
@@ -71,26 +69,27 @@ sequenceDiagram
     end
 
     Note over Skill: Determine repo access strategy
+    Skill->>PathSel: path_select.py <repo-url> <current-repo>
+    PathSel->>Cache: read repo_map.json
+    Cache-->>PathSel: cache hit / miss
+    PathSel-->>Skill: PATH-CHECK lines + SELECTED_PATH/REPO_PATH
 
-    alt Already in target repo (Path A)
-        Skill->>Git: git fetch origin
-        Skill->>Git: gh pr checkout <number>
+    alt Path A
+        Skill->>Git: git fetch origin base head
+        Skill->>Git: git checkout <headRefName>
         Git-->>Skill: Switched to PR branch
-    else Check shared cache
-        Skill->>Cache: repo_cache_lookup.py <repo-url>
-        alt Cache hit (Path B)
-            Cache-->>Skill: Local path to cached repo
-            Skill->>Git: git fetch origin base head
-            Skill->>Git: gh pr checkout <number>
-            Git-->>Skill: Switched to PR branch
-        else Cache miss (Path C)
-            Cache-->>Skill: exit 1
-            Skill->>gh: gh repo clone (partial, sparse)
-            gh-->>Git: Partial clone in temp dir
-            Skill->>Git: sparse-checkout set / + PR directories
-            Skill->>Git: gh pr checkout <number>
-            Git-->>Skill: Switched to PR branch
-        end
+    else Path B
+        Skill->>Git: cd REPO_PATH
+        Skill->>Git: git fetch origin base head
+        Skill->>Git: git checkout <headRefName>
+        Git-->>Skill: Switched to PR branch
+    else Path C
+        Skill->>gh: gh repo clone (partial, sparse)
+        gh-->>Git: Partial clone in temp dir
+        Skill->>Git: sparse-checkout set / + PR directories
+        Skill->>Git: git fetch origin head
+        Skill->>Git: git checkout <headRefName>
+        Git-->>Skill: Switched to PR branch
     end
 
     Note over Skill,Git: All further reads are local
@@ -177,7 +176,8 @@ git sparse-checkout add src/moduleA deploy .github/workflows
 5. **Checkout the PR branch after sparse scope is set**
 
 ```bash
-GH_PAGER=cat gh pr checkout <PR_NUMBER>
+git fetch origin <headRefName>
+git checkout <headRefName>
 ```
 
 6. **Read context incrementally**
@@ -224,8 +224,8 @@ flowchart TD
     S3 --> D3["Downloads: blobs only for PR-touched directories"]
     D3 --> A3["Analyzable now:\n- full content of modified files\n- directory-local context"]
 
-    A3 --> S4["4) GH_PAGER=cat gh pr checkout <PR_NUMBER>"]
-    S4 --> D4["Downloads: PR head refs\n+ blobs for sparse paths as needed"]
+    A3 --> S4["4) git fetch origin <headRefName> + git checkout <headRefName>"]
+    S4 --> D4["Downloads: head branch refs\n+ blobs for sparse paths as needed"]
     D4 --> A4["Analyzable now:\n- PR branch version of sparse files"]
 
     A4 --> S5["5) git sparse-checkout add <related dirs> (optional)"]
@@ -240,7 +240,7 @@ flowchart TD
 | 1 | `GH_PAGER=cat gh pr view ...` + `GH_PAGER=cat gh pr diff ...` | PR metadata and diff text | PR intent, changed files, patch hunks |
 | 2 | `gh repo clone ... --filter=blob:none --sparse` | Commit graph, tree objects, refs (no full blobs) | Repo structure, root convention files |
 | 3 | `git sparse-checkout add <pr-dirs>` | Blobs for changed directories only | Full content of modified files |
-| 4 | `GH_PAGER=cat gh pr checkout <N>` | PR head refs and sparse-path blobs as needed | PR branch version of sparse files |
+| 4 | `git fetch origin <headRefName>` + `git checkout <headRefName>` | Head branch refs and sparse-path blobs as needed | PR branch version of sparse files |
 | 5 | `git sparse-checkout add <related-dirs>` | Blobs for specifically added related dirs | Interfaces/callers/tests needed for validation |
 | 6 | `rm -rf "$REVIEW_DIR"` | None | Cleanup only |
 
@@ -250,7 +250,7 @@ A critical concern with cached repos (Path B) is stale branches leading to inacc
 
 1. **Targeted branch fetch** — `git fetch origin <baseRefName> <headRefName>` fetches exactly the two branches the PR needs
 2. **Remote-tracking refs for comparison** — always uses `origin/<baseRefName>` (not local branches) as the diff base
-3. **`gh pr checkout`** — ensures the local PR branch matches the remote HEAD
+3. **Direct branch checkout** — `git checkout <headRefName>` uses metadata from `gh pr view` and avoids `gh pr checkout` auth edge cases on Enterprise hosts
 
 ## Requirements
 

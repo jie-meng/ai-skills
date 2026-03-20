@@ -83,6 +83,21 @@ Accept PR input in any of these formats:
 
 3. **Let `gh` CLI be the sole judge.** Jump straight to Step 2 and run the commands. If the host is not a GitHub instance or the user hasn't authenticated, `gh` will return a clear error — handle it then (see Error Handling). Do NOT pre-screen, do NOT ask clarifying questions, do NOT warn about "possible non-GitHub hosts".
 
+### Forbidden platform speculation text (MANDATORY)
+
+Before running `gh`, never output any sentence that classifies or guesses the platform.
+
+Forbidden examples (must not appear in user-visible output):
+- "This is not a GitHub URL"
+- "This looks like GitLab/Bitbucket/Gitea"
+- "Possibly self-hosted git platform"
+- "This appears to be ..."
+
+Allowed behavior:
+- Immediately run `gh pr view <URL>` and `gh pr diff <URL>`
+- If those commands fail, report the exact `gh` error and follow Error Handling
+- If those commands succeed, describe facts only (for example, "`gh` commands succeeded for this host")
+
 Extract: **owner**, **repo**, **PR number**, and **hostname** (for any non-`github.com` domain).
 
 **Canonical ref rule (avoid duplicate retries):**
@@ -128,6 +143,11 @@ Do NOT rely on interactive `less`/pager behavior during tool execution.
 - Fetch metadata and diff once, then reuse the captured output throughout the review.
 - Do NOT re-run `gh pr diff`/`gh pr view` unless output is missing/corrupted or PR head changed during review.
 - If a re-fetch is required, state the reason explicitly.
+
+Enforcement rule:
+- Persist first successful outputs to variables/files (for example `PR_VIEW_JSON_PATH`, `PR_DIFF_PATH`) and reuse them for all later analysis.
+- Any second `gh pr view`/`gh pr diff` call MUST include a log line in advance: `[REFETCH-REASON] <specific reason>`.
+- "Need to read another section" is NOT a valid reason; read from the previously captured output instead.
 
 ### 2c. Collect and analyze PR images (default when relevant)
 
@@ -187,84 +207,128 @@ If image retrieval fails, report the exact reason and ask for one targeted unblo
 
 The goal is to have repo context available locally so context gathering is just file reads — no per-file API requests. Try these paths **in order** — pick the first one that applies.
 
-### Strict Path Order (MANDATORY)
+### Path Selection Script (MANDATORY — run first, before any clone or fetch)
 
-Before any clone/fetch work, follow this exact order:
+**Do NOT write inline path-check logic.** Instead, run the bundled `path_select.py` script. It checks A → B → C in order and prints `[PATH-CHECK]` / `[PATH-SELECTED]` lines as it runs — guaranteeing the trace appears in the execution log at decision time, not as prose in the final review output.
 
-1. Check **Path A** first.
-2. If Path A does not apply, check **Path B** via `repo_cache_lookup.py`.
-3. Only if both A and B fail, use **Path C**.
+The script lives alongside this SKILL.md at `scripts/path_select.py`. Locate and run it using Python directly — do NOT use shell `eval` or complex shell expansions, as these may be blocked by shell safety filters in some AI tools:
 
-**NO probing clones rule:**
-- Do NOT run exploratory clone commands before path checks.
-- Do NOT clone into `/tmp`, `$TMPDIR`, or any ad-hoc directory at any stage.
-- For Path C, create `REVIEW_DIR` under the unified cache first, then clone directly into that path.
+```python
+import subprocess, os, pathlib
 
-### Path Trace Output (MANDATORY)
+# Step 1: locate path_select.py from known install locations
+search_dirs = [
+    pathlib.Path.home() / ".config/opencode/skills/github-code-review-pr/scripts",
+    pathlib.Path.home() / ".claude/skills/github-code-review-pr/scripts",
+    pathlib.Path.home() / ".copilot/skills/github-code-review-pr/scripts",
+    pathlib.Path.home() / ".cursor/skills/github-code-review-pr/scripts",
+    pathlib.Path.home() / ".gemini/skills/github-code-review-pr/scripts",
+    pathlib.Path.home() / ".codex/skills/github-code-review-pr/scripts",
+]
+script = next((d / "path_select.py" for d in search_dirs if (d / "path_select.py").exists()), None)
 
-During Step 3, emit explicit path-trace lines for **all three** paths so reviewers can audit behavior from logs.
+# Step 2: get current repo (empty string if not inside any repo or gh unavailable)
+result = subprocess.run(
+    ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
+    capture_output=True, text=True, env={**os.environ, "GH_PAGER": "cat"}
+)
+current_repo = result.stdout.strip() if result.returncode == 0 else ""
 
-Use this exact format (one line each):
-
-```text
-[PATH-CHECK] A: HIT|MISS - <reason>
-[PATH-CHECK] B: HIT|MISS - <reason>
-[PATH-CHECK] C: SELECTED|SKIPPED - <reason>
-[PATH-SELECTED] Path A|B|C - <one-line rationale>
+# Step 3: run path selection — prints [PATH-CHECK] / [PATH-SELECTED] trace lines
+# and prints machine-readable lines: SELECTED_PATH=..., REPO_PATH=...
+output = subprocess.run(
+    ["python3", str(script), "https://<host>/<owner>/<repo>", current_repo],
+    capture_output=False  # prints trace directly to stdout
+)
 ```
 
-Rules:
-- Always print all four lines, even when Path A hits immediately.
-- If Path A is HIT: set `B: SKIPPED` and `C: SKIPPED` with reason.
-- If Path B is HIT: set `C: SKIPPED` with reason.
-- If Path C is used: `C: SELECTED` and include the created cache directory path.
-- Do not continue to Step 4 until these lines are present in the log/output.
+After the script runs, read `SELECTED_PATH` and `REPO_PATH` from the `KEY=VALUE` lines in the output (parse from stdout if needed), or re-run with `capture_output=True` to parse programmatically.
+
+**Rules:**
+- Run this block before any `git fetch`, `git checkout`, or clone command.
+- Do not proceed to Step 4 until `[PATH-SELECTED]` is visible in the log.
+- Do NOT re-implement path-check logic inline — always use the script.
+
+### Execution guardrail (MANDATORY)
+
+Immediately after parsing `SELECTED_PATH` / `REPO_PATH`, register cleanup handling for Step 7.
+Do this **before** any fetch/checkout/clone command so cleanup still runs on mid-review failures.
+
+- Keep `SELECTED_PATH` in a shell variable for cleanup branching.
+- For Path A, capture `ORIGINAL_BRANCH` immediately.
+- For Path B, capture `REPO_PATH` and resolve `DEFAULT_BRANCH` once.
+- For Path C, capture created temp dirs (`REVIEW_DIR`, `RUN_DIR`) as soon as they are created.
+- Use an `EXIT` trap (or equivalent) so cleanup executes whether review succeeds, partially fails, or exits early.
 
 ### Path A: Already inside the target repo
 
-Check: `gh repo view --json nameWithOwner -q .nameWithOwner` — if it matches the PR's repo, we're already here.
+When `SELECTED_PATH=A`, proceed immediately:
 
 ```bash
-git fetch origin
+git fetch origin <baseRefName> <headRefName>
 ORIGINAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-gh pr checkout <PR_NUMBER>
+git checkout <headRefName>
 ```
+
+Same reasoning as Path B: use `git checkout <headRefName>` directly (branch name known from Step 2a) rather than `gh pr checkout`, which can fail on Enterprise hosts that require separate `gh auth login --hostname` even when `gh pr view/diff` works.
 
 After review, restore the original branch (see Step 7).
 
 ### Path B: Shared repo cache hit — full repo already cached
 
-Check if the `git-repo-reader` skill (or a previous review) has already cached this repo. Run the bundled lookup script:
+When `SELECTED_PATH=B`, `$REPO_PATH` is already set by the path-selection script above.
 
-```bash
-REPO_PATH=$(python3 scripts/repo_cache_lookup.py "https://<host>/<owner>/<repo>")
-```
-
-This is a **read-only** lookup — it checks the shared `git-repo-cache` mapping file and prints the local path if found (exit 0), or exits 1 if not cached. It never clones or modifies anything.
-
-If cache hit (exit 0), update the cached repo and checkout the PR:
+Update the cached repo and checkout the PR branch. `headRefName` is already known from Step 2a metadata — use it directly:
 
 ```bash
 cd "$REPO_PATH"
 
-# Fetch the base branch so origin/<baseRefName> is current for diff comparison
-git fetch origin <baseRefName>
+# Fetch both branches: base for diff comparison, head for the PR code
+git fetch origin <baseRefName> <headRefName>
 
-# Checkout the PR branch (gh internally fetches refs/pull/<N>/head)
-gh pr checkout <PR_NUMBER>
+# Checkout the PR branch using the branch name from metadata
+git checkout <headRefName>
 ```
 
-After `gh pr checkout`, `HEAD` points to the PR's latest code. For base branch comparison, use `origin/<baseRefName>` (the remote-tracking ref, guaranteed fresh after the fetch).
+If the command above fails (missing remote branch, force-pushed branch, stale refs, or host-specific behavior), do **not** silently continue as if full repo context were available.
 
-**Important**: Always use `origin/<baseRefName>` (not a local branch) as the comparison target — this is the freshest ref and avoids stale-local-branch issues. No need to manually fetch `<headRefName>` — `gh pr checkout` already fetches the PR head ref internally.
+Run this mandatory fallback sequence:
+
+```bash
+# Keep error output for the final review limitation note
+FETCH_ERR="$(git fetch origin <baseRefName> <headRefName> 2>&1)" || true
+
+if ! git rev-parse --verify --quiet "origin/<headRefName>" >/dev/null; then
+  # Fallback: fetch PR head ref directly by PR number
+  git fetch origin "pull/<PR_NUMBER>/head:pr-<PR_NUMBER>-head" 2>&1 || true
+fi
+
+if git rev-parse --verify --quiet "origin/<headRefName>" >/dev/null; then
+  git checkout <headRefName>
+elif git rev-parse --verify --quiet "pr-<PR_NUMBER>-head" >/dev/null; then
+  git checkout "pr-<PR_NUMBER>-head"
+else
+  CONTEXT_MODE="diff_only"
+  CONTEXT_LIMITATION="Path B branch checkout failed: ${FETCH_ERR:-unknown fetch error}"
+fi
+```
+
+When `CONTEXT_MODE=diff_only`:
+- Continue review using Step 2 metadata + diff only (no fake local-context claims)
+- Explicitly state this limitation in the review output
+- **Still run Step 7 cleanup** and print `[PATH-CLEANUP] ...` status lines
+
+**Why `git checkout <headRefName>` instead of `gh pr checkout`**: `gh pr checkout` can fail if the host hasn't been authenticated with `gh auth login --hostname <host>`, even when `gh pr view/diff` succeeds (those commands may use a different auth path). Since `headRefName` is already known from Step 2a metadata and the branch is available after `git fetch origin <headRefName>`, using `git checkout` directly is more reliable and avoids this failure mode.
+
+For base branch comparison, use `origin/<baseRefName>` (the remote-tracking ref, guaranteed fresh after the fetch).
 
 ### Path C: No cached repo — blobless clone to temp directory
 
-If neither Path A nor Path B applies, use **blobless clone + sparse checkout** to avoid downloading the entire repo. This downloads all commits, tree objects, and branch refs on clone — but **file contents (blobs) are NOT downloaded until explicitly checked out**. Even for a multi-GB monorepo, the initial clone is typically just a few MB.
+When `SELECTED_PATH=C`, use **blobless clone + sparse checkout** to avoid downloading the entire repo. This downloads all commits, tree objects, and branch refs on clone — but **file contents (blobs) are NOT downloaded until explicitly checked out**. Even for a multi-GB monorepo, the initial clone is typically just a few MB.
 
-**Why NOT `--depth=1` or `--single-branch`**: `gh pr checkout` needs to fetch `refs/pull/<N>/head` and set up tracking. With `--single-branch` the refspec is restricted to one branch, causing `gh pr checkout` to fail with `fatal: cannot set up tracking information`. `--depth=1` implies `--single-branch`. Using `--filter=blob:none --sparse` (without depth/single-branch) gives us all refs and history metadata at minimal cost — blobs are only fetched when files are actually checked out.
+**Why NOT `--depth=1` or `--single-branch`**: With `--single-branch` the refspec is restricted to one branch, making it impossible to later `git fetch origin <headRefName>` for a different branch. `--depth=1` implies `--single-branch`. Using `--filter=blob:none --sparse` (without depth/single-branch) gives us all refs and history metadata at minimal cost — blobs are only fetched when files are actually checked out.
 
-**Path C location rule (MANDATORY):** The clone destination MUST be inside `mythril-skills-cache/github-code-review-pr/`. Never do a trial clone in `/tmp` and then retry in cache.
+**Path C location rule (MANDATORY):** Clone directly into the unified skill cache — never use `/tmp`, `$TMPDIR`, or any ad-hoc directory. The `path_select.py` trace already shows the target cache dir; clone into a fresh subdirectory of that path.
 
 Create a temp directory under the **unified skill cache**:
 
@@ -310,8 +374,11 @@ git sparse-checkout add src/types src/shared
 
 Now checkout the PR branch to get the PR's version of those files:
 ```bash
-gh pr checkout <PR_NUMBER>
+git fetch origin <headRefName>
+git checkout <headRefName>
 ```
+
+(Use `git checkout <headRefName>` directly — same reasoning as Path A/B: more reliable than `gh pr checkout` on Enterprise hosts.)
 
 After review, delete the temp directory (see Step 7).
 
@@ -322,6 +389,8 @@ After review, delete the temp directory (see Step 7).
 | A | Already inside target repo | Instant | Full repo |
 | B | Repo found in shared cache | Fast (just `fetch` two branches) | Full repo |
 | C | Repo not cached | Moderate (blobless clone) | Targeted files only |
+
+Note: Path B can temporarily degrade to diff-only mode if branch fetch/checkout fails. This is allowed only when the fallback sequence above is attempted and logged.
 
 ## Step 4: Gather Repository Context
 
@@ -440,6 +509,45 @@ Analyze user's input to determine review output language:
 - A potential risk must be labeled as such (e.g., "Potential risk") and include one concrete validation step.
 - Do NOT present speculative runtime/CI behavior as established fact without direct evidence.
 
+### Finding classification format (MANDATORY)
+
+The final review must separate findings into two explicit groups:
+
+- `Confirmed Findings` / `已确认问题`: only evidence-backed issues
+- `Potential Risks` / `潜在风险`: hypotheses that still need validation
+
+Classification constraints:
+- Every item must be in exactly one group (never both)
+- Every `Potential risk` item must include one concrete validation step
+- If no confirmed issues exist, explicitly write `Confirmed Findings: none`
+- If no potential risks exist, explicitly write `Potential Risks: none`
+
+### Internal consistency check (MANDATORY before final output)
+
+Run this final check before sending the review:
+
+1. Remove any item that was later disproven during the same review run.
+2. Do not keep self-contradicting pairs like "Issue: X" and later "No issue for X".
+3. If investigation shows "not an issue", keep only the final conclusion and delete the earlier suspicion from issue lists.
+4. Ensure the verdict (`Approve` / `Request Changes` / `Comment`) matches the final issue severity.
+
+### Final pre-flight checklist (MANDATORY, PASS/FAIL)
+
+Before sending user-visible review output, verify all checks below. If any check fails, fix it first.
+
+1. `NO_SPECULATION_PASS`
+   - No platform-guessing text appears before the first `gh` command.
+   - Forbidden examples: "not a GitHub URL", "looks like GitLab", "possibly self-hosted".
+2. `SINGLE_FETCH_PASS`
+   - `gh pr view` and `gh pr diff` were each executed once for this review run.
+   - If re-fetch happened, a `[REFETCH-REASON] ...` line is present and valid.
+3. `CLEANUP_EVIDENCE_PASS`
+   - Shell output includes a `[PATH-CLEANUP] ...` line emitted by cleanup script `echo`.
+   - Do not replace this with prose-only cleanup claims.
+4. `VERDICT_STATE_PASS`
+   - If PR state is `MERGED` or `CLOSED`, default verdict is `Comment` (retrospective feedback), not `Request Changes`.
+   - Use `Request Changes` on merged/closed PR only when user explicitly asks for a hypothetical pre-merge gate verdict.
+
 Structure the review into these sections:
 
 ### If Chinese review requested:
@@ -514,6 +622,56 @@ Structure the review into these sections:
 
 **This step is MANDATORY — always execute it, even if the review encountered errors.**
 
+### 7a. Failure-safe cleanup wiring (MANDATORY)
+
+Register cleanup right after Step 3 path selection, not at the end of the review flow.
+Use an `EXIT` trap (or equivalent in non-shell tools) so cleanup runs on success, command failure, or early return.
+
+```bash
+cleanup_review_env() {
+  case "${SELECTED_PATH:-}" in
+    A)
+      if [[ -n "${ORIGINAL_BRANCH:-}" ]]; then
+        git checkout "$ORIGINAL_BRANCH" >/dev/null 2>&1 || true
+        echo "[PATH-CLEANUP] Path A - restored branch to $ORIGINAL_BRANCH"
+      else
+        echo "[PATH-CLEANUP] Path A - skipped (ORIGINAL_BRANCH unavailable)"
+      fi
+      ;;
+    B)
+      if [[ -n "${REPO_PATH:-}" ]] && [[ -d "$REPO_PATH/.git" ]]; then
+        cd "$REPO_PATH" || true
+        DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null | sed 's|origin/||')
+        git checkout "${DEFAULT_BRANCH:-main}" >/dev/null 2>&1 || true
+        git reset --hard "origin/${DEFAULT_BRANCH:-main}" >/dev/null 2>&1 || true
+        git clean -fd >/dev/null 2>&1 || true
+        echo "[PATH-CLEANUP] Path B - reset cached repo to ${DEFAULT_BRANCH:-main}, ready for next use"
+      else
+        echo "[PATH-CLEANUP] Path B - skipped (REPO_PATH unavailable)"
+      fi
+      ;;
+    C)
+      REMOVED=()
+      for d in "${REVIEW_DIR:-}" "${RUN_DIR:-}"; do
+        if [[ -n "$d" ]] && [[ -e "$d" ]]; then
+          rm -rf "$d" && REMOVED+=("$d") || echo "[PATH-CLEANUP] Path C - failed to delete: $d"
+        fi
+      done
+      if [[ ${#REMOVED[@]} -gt 0 ]]; then
+        echo "[PATH-CLEANUP] Path C - deleted temp dirs: ${REMOVED[*]}"
+      else
+        echo "[PATH-CLEANUP] Path C - no temp dirs to delete"
+      fi
+      ;;
+    *)
+      echo "[PATH-CLEANUP] skipped - SELECTED_PATH not set"
+      ;;
+  esac
+}
+
+trap cleanup_review_env EXIT
+```
+
 After the review is complete:
 - **Path A** (existing repo): Restore the original branch: `git checkout "$ORIGINAL_BRANCH"`
 - **Path B** (shared repo cache): Reset to a clean state on the default branch so the cached repo is ready for the next use:
@@ -535,10 +693,19 @@ After the review is complete:
 - After deletion, output a short status line that cleanup succeeded and which temp paths were removed (or how many were removed).
 - If any temp directory cannot be deleted, explicitly report the remaining path and error, then suggest `skills-clean-cache`.
 
-Also include one explicit cleanup line with the selected path:
+The cleanup confirmation MUST be produced by an `echo` command inside the shell cleanup script, not written later as prose:
 
-```text
-[PATH-CLEANUP] Path A|B|C - <what was restored/reset/deleted>
+```bash
+# Example for Path B:
+echo "[PATH-CLEANUP] Path B - reset cached repo to main, ready for next use"
+
+# Example for Path C:
+rm -rf "$REVIEW_DIR" "$RUN_DIR"
+echo "[PATH-CLEANUP] Path C - deleted temp dirs: $REVIEW_DIR $RUN_DIR"
+
+# Example for Path A:
+git checkout "$ORIGINAL_BRANCH"
+echo "[PATH-CLEANUP] Path A - restored branch to $ORIGINAL_BRANCH"
 ```
 
 Image artifacts and Path C temp directories live under `mythril-skills-cache/github-code-review-pr/`. If leftovers accumulate (e.g., from interrupted sessions), the user can run:
@@ -553,6 +720,7 @@ skills-clean-cache
   1. This host might be GitHub Enterprise — run `gh auth login --hostname <host>` to authenticate
   2. If it's not GitHub at all, this skill only supports GitHub (including GHE)
   - **Do NOT assume the host is "GitLab" or any other platform** — just report the `gh` error and let the user decide. Domains like `git.xxx.com` or `git.xxx.com.au` are commonly GHE, not GitLab.
+  - **Do NOT include speculative prefaces** such as "this looks like GitLab" or "not a GitHub URL".
 - **`gh` not installed**: Report error and suggest running `skills-check github-code-review-pr`
 - **`gh` not authenticated for github.com**: Report error and suggest `gh auth login`
 - **PR not found**: Verify URL/number and repo access
@@ -576,7 +744,7 @@ skills-clean-cache
 
 ### Example 3: Review in current repo context
 **User input**: "Review PR #15"
-**Action**: Already in repo (Path A) → fetch latest → `gh pr checkout 15`, read context locally, review
+**Action**: Already in repo (Path A) → `git fetch origin <base> <head>` → `git checkout <headRefName>`, read context locally, review
 **Output**: Context-aware review, restore original branch when done
 
 ### Example 4: GitHub Enterprise URL (unknown domain)
