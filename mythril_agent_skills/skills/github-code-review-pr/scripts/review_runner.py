@@ -4,10 +4,16 @@
 This script standardizes high-risk operational steps for github-code-review-pr:
 
 1. Fetch PR metadata and diff exactly once (non-interactive pager disabled)
-2. Run path selection (A/B/C) via path_select.py
-3. Prepare local repo context with Path B fallback (pull/<PR>/head)
+2. Run path selection (A/B/C/D) via path_select.py
+3. Prepare local repo context with branch checkout + fallback (pull/<PR>/head)
 4. Persist all session state in a manifest JSON
 5. Perform deterministic cleanup with required [PATH-CLEANUP] markers
+
+Path overview:
+  A — already inside the target repo
+  B — repo found in shared git-repo-cache
+  C — clone into shared cache via repo_manager.py (reusable, lightweight)
+  D — blobless sparse-clone into skill temp cache (large repos or C failure)
 
 Usage:
     python3 scripts/review_runner.py prepare <PR_URL_OR_NUMBER>
@@ -19,7 +25,7 @@ Output (prepare):
     RUN_MANIFEST=<path>
     PR_VIEW_JSON_PATH=<path>
     PR_DIFF_PATH=<path>
-    SELECTED_PATH=A|B|C
+    SELECTED_PATH=A|B|C|D
     REPO_PATH=<path-or-empty>
     REPO_WORKDIR=<path-or-empty>
     PR_STATE=<OPEN|CLOSED|MERGED>
@@ -51,6 +57,8 @@ PR_VIEW_FIELDS = (
     "number,title,body,state,author,baseRefName,headRefName,labels,reviewDecision,"
     "additions,deletions,changedFiles,commits,files,comments,reviews,url"
 )
+
+REPO_SIZE_THRESHOLD_KB = 100 * 1024
 
 
 COMMAND_LOG: list[str] = []
@@ -162,11 +170,11 @@ def parse_key_value_output(stdout_text: str) -> dict[str, str]:
     return result
 
 
-def locate_path_select_script() -> Path:
-    """Locate sibling path_select.py script from this file location."""
-    script = Path(__file__).resolve().parent / "path_select.py"
+def locate_sibling_script(name: str) -> Path:
+    """Locate a sibling script in the same directory as this file."""
+    script = Path(__file__).resolve().parent / name
     if not script.exists():
-        raise FileNotFoundError(f"path_select.py not found at {script}")
+        raise FileNotFoundError(f"{name} not found at {script}")
     return script
 
 
@@ -194,6 +202,23 @@ def current_branch(repo_dir: Path) -> str:
     if cp.returncode != 0:
         return ""
     return cp.stdout.strip()
+
+
+def query_repo_size_kb(host: str, owner: str, repo: str) -> int | None:
+    """Query repo disk size (KB) via GitHub API. Returns None on failure."""
+    api_args = ["gh", "api", f"repos/{owner}/{repo}", "--jq", ".size"]
+    if host != "github.com":
+        api_args = [
+            "gh", "api", "--hostname", host,
+            f"repos/{owner}/{repo}", "--jq", ".size",
+        ]
+    cp = run_cmd(api_args)
+    if cp.returncode != 0:
+        return None
+    try:
+        return int(cp.stdout.strip())
+    except (ValueError, TypeError):
+        return None
 
 
 def ensure_checkout(
@@ -302,7 +327,7 @@ def prepare_session(pr_ref: str) -> int:
         return 2
 
     current_repo = current_repo_name_with_owner()
-    path_select_script = locate_path_select_script()
+    path_select_script = locate_sibling_script("path_select.py")
     path_select_cp = run_cmd(
         ["python3", str(path_select_script), repo_url, current_repo],
     )
@@ -319,7 +344,7 @@ def prepare_session(pr_ref: str) -> int:
     kv = parse_key_value_output(path_select_cp.stdout)
     selected_path = kv.get("SELECTED_PATH", "")
     repo_path = kv.get("REPO_PATH", "")
-    if selected_path not in {"A", "B", "C"}:
+    if selected_path not in {"A", "B", "C", "D"}:
         print("Invalid SELECTED_PATH from path_select.py")
         return 2
 
@@ -361,7 +386,69 @@ def prepare_session(pr_ref: str) -> int:
         else:
             context_limitation = "Path B selected but REPO_PATH missing"
 
-    else:  # Path C
+    elif selected_path == "C":
+        threshold_mb = REPO_SIZE_THRESHOLD_KB // 1024
+        repo_size_kb = query_repo_size_kb(host, owner, repo)
+        if repo_size_kb is not None:
+            size_mb = repo_size_kb / 1024
+            print(
+                f"[PATH-SIZE] Repo disk size: {size_mb:.1f} MB "
+                f"(threshold: {threshold_mb} MB)"
+            )
+        else:
+            print("[PATH-SIZE] Repo disk size: unknown (API query failed)")
+        if repo_size_kb is not None and repo_size_kb > REPO_SIZE_THRESHOLD_KB:
+            print(
+                f"[PATH-SIZE] {size_mb:.0f} MB > {threshold_mb} MB "
+                "→ skipping shared cache, using Path D"
+            )
+            selected_path = "D"
+        else:
+            if repo_size_kb is None:
+                print(
+                    f"[PATH-SIZE] Defaulting to Path C "
+                    f"(shared cache clone, threshold: {threshold_mb} MB)"
+                )
+            else:
+                print(
+                    f"[PATH-SIZE] {size_mb:.1f} MB ≤ {threshold_mb} MB "
+                    "→ proceeding with Path C (shared cache clone)"
+                )
+            repo_manager_script = locate_sibling_script("repo_manager.py")
+            sync_cp = run_cmd(
+                ["python3", str(repo_manager_script), "sync", repo_url],
+            )
+            synced_path = (
+                sync_cp.stdout.strip().splitlines()[-1]
+                if sync_cp.stdout.strip()
+                else ""
+            )
+            if (
+                sync_cp.returncode != 0
+                or not synced_path
+                or not Path(synced_path).is_dir()
+            ):
+                sync_err = (
+                    sync_cp.stderr.strip()
+                    or sync_cp.stdout.strip()
+                    or "repo_manager.py sync failed"
+                )
+                print(
+                    f"[PATH-FALLBACK] Path C failed ({sync_err}), "
+                    "falling back to Path D"
+                )
+                selected_path = "D"
+            else:
+                repo_path = synced_path
+                repo_workdir = synced_path
+                checkout_ref, context_limitation = ensure_checkout(
+                    Path(repo_workdir),
+                    base_ref_name,
+                    head_ref_name,
+                    pr_number,
+                )
+
+    if selected_path == "D":
         review_dir_path = Path(tempfile.mkdtemp(prefix="repo-", dir=str(cache_dir)))
         review_dir = str(review_dir_path)
         clone_cp = run_cmd(
@@ -380,7 +467,7 @@ def prepare_session(pr_ref: str) -> int:
             context_limitation = (
                 clone_cp.stderr.strip()
                 or clone_cp.stdout.strip()
-                or "Path C blobless clone failed"
+                or "Path D blobless sparse clone failed"
             )
         else:
             repo_workdir = str(review_dir_path)
@@ -489,7 +576,7 @@ def cleanup_session(manifest_path: Path) -> int:
                 "[PATH-CLEANUP] Path A - skipped (missing repo_workdir/original_branch)"
             )
 
-    elif selected_path == "B":
+    elif selected_path in ("B", "C"):
         if repo_workdir and (Path(repo_workdir) / ".git").is_dir():
             repo_dir = Path(repo_workdir)
             default_branch = resolve_default_branch(repo_dir)
@@ -499,22 +586,25 @@ def cleanup_session(manifest_path: Path) -> int:
             )
             run_cmd(["git", "clean", "-fd"], cwd=repo_dir)
             print(
-                "[PATH-CLEANUP] Path B - reset cached repo to "
+                f"[PATH-CLEANUP] Path {selected_path} - reset cached repo to "
                 f"{default_branch}, ready for next use"
             )
         else:
-            print("[PATH-CLEANUP] Path B - skipped (repo_workdir unavailable)")
+            print(
+                f"[PATH-CLEANUP] Path {selected_path} - skipped "
+                "(repo_workdir unavailable)"
+            )
 
-    elif selected_path == "C":
+    elif selected_path == "D":
         removed: list[str] = []
         for path in [review_dir]:
             if str(path) and path.exists():
                 shutil.rmtree(path, ignore_errors=False)
                 removed.append(str(path))
         if removed:
-            print(f"[PATH-CLEANUP] Path C - deleted temp dirs: {' '.join(removed)}")
+            print(f"[PATH-CLEANUP] Path D - deleted temp dirs: {' '.join(removed)}")
         else:
-            print("[PATH-CLEANUP] Path C - no temp dirs to delete")
+            print("[PATH-CLEANUP] Path D - no temp dirs to delete")
 
     else:
         print("[PATH-CLEANUP] skipped - unknown SELECTED_PATH")

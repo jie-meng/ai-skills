@@ -119,15 +119,19 @@ Locate the script from known skill install locations (same search pattern as `pa
 
 This command:
 1. Fetches PR metadata (`gh pr view`) and diff (`gh pr diff`) exactly once
-2. Runs `path_select.py` (A → B → C selection with `[PATH-CHECK]`/`[PATH-SELECTED]` trace)
-3. Handles checkout with fallback (`pull/<PR>/head`)
-4. Saves all outputs to a session manifest
+2. Runs `path_select.py` (A → B → C → D selection with `[PATH-CHECK]`/`[PATH-SELECTED]` trace)
+3. When neither A nor B matches, queries repo size via `gh api` to decide C vs D:
+   - Repo ≤ 100 MB → Path C: clone into shared cache via `repo_manager.py sync` (reusable)
+   - Repo > 100 MB → Path D: blobless sparse clone into temp dir (disposable)
+   - If size query fails → defaults to Path C (with fallback to D if clone fails)
+4. Handles checkout with fallback (`pull/<PR>/head`)
+5. Saves all outputs to a session manifest
 
 Machine-readable output lines:
 - `RUN_MANIFEST=<path>` — session manifest JSON (needed for cleanup and gate scripts)
 - `PR_VIEW_JSON_PATH=<path>` — saved PR metadata JSON file
 - `PR_DIFF_PATH=<path>` — saved PR diff file
-- `SELECTED_PATH=A|B|C` — which path was selected
+- `SELECTED_PATH=A|B|C|D` — which path was selected
 - `REPO_WORKDIR=<path>` — local repo directory (empty if diff-only)
 - `PR_STATE=OPEN|CLOSED|MERGED` — PR state
 - `CONTEXT_MODE=full_repo|diff_only` — whether full repo context is available
@@ -247,7 +251,7 @@ The rest of Step 3 below is the **manual fallback path** — only execute it whe
 
 ### Path Selection Script (MANDATORY when not using review_runner.py — run first, before any clone or fetch)
 
-**Do NOT write inline path-check logic.** Instead, run the bundled `path_select.py` script. It checks A → B → C in order and prints `[PATH-CHECK]` / `[PATH-SELECTED]` lines as it runs — guaranteeing the trace appears in the execution log at decision time, not as prose in the final review output.
+**Do NOT write inline path-check logic.** Instead, run the bundled `path_select.py` script. It checks A → B → C → D in order and prints `[PATH-CHECK]` / `[PATH-SELECTED]` lines as it runs — guaranteeing the trace appears in the execution log at decision time, not as prose in the final review output.
 
 The script lives alongside this SKILL.md at `scripts/path_select.py`. Locate and run it using Python directly — do NOT use shell `eval` or complex shell expansions, as these may be blocked by shell safety filters in some AI tools:
 
@@ -295,7 +299,8 @@ Do this **before** any fetch/checkout/clone command so cleanup still runs on mid
 - Keep `SELECTED_PATH` in a shell variable for cleanup branching.
 - For Path A, capture `ORIGINAL_BRANCH` immediately.
 - For Path B, capture `REPO_PATH` and resolve `DEFAULT_BRANCH` once.
-- For Path C, capture created temp dirs (`REVIEW_DIR`, `RUN_DIR`) as soon as they are created.
+- For Path C, capture `REPO_PATH` (same as Path B — it's a shared cache repo).
+- For Path D, capture created temp dirs (`REVIEW_DIR`, `RUN_DIR`) as soon as they are created.
 - Use an `EXIT` trap (or equivalent) so cleanup executes whether review succeeds, partially fails, or exits early.
 
 ### Path A: Already inside the target repo
@@ -360,13 +365,50 @@ When `CONTEXT_MODE=diff_only`:
 
 For base branch comparison, use `origin/<baseRefName>` (the remote-tracking ref, guaranteed fresh after the fetch).
 
-### Path C: No cached repo — blobless clone to temp directory
+### Path C: Clone into shared cache (default for small/medium repos)
 
-When `SELECTED_PATH=C`, use **blobless clone + sparse checkout** to avoid downloading the entire repo. This downloads all commits, tree objects, and branch refs on clone — but **file contents (blobs) are NOT downloaded until explicitly checked out**. Even for a multi-GB monorepo, the initial clone is typically just a few MB.
+When `SELECTED_PATH=C`, the repo is not yet available locally. Before cloning, the runner queries the repo's disk size via `gh api repos/<owner>/<repo> --jq '.size'`:
+
+- **Repo ≤ 100 MB** → proceed with Path C (clone into shared cache)
+- **Repo > 100 MB** → downgrade to Path D (disposable sparse clone) — the `[PATH-SIZE]` trace line explains why
+- **Size query fails** → proceed with Path C as default (safe fallback to D if clone fails)
+
+When proceeding with Path C, the repo is cloned into the **shared `git-repo-cache`** via the bundled `repo_manager.py sync` command. This creates a blobless clone that is **reusable across sessions and skills** — the next PR review on the same repo will hit Path B instantly.
+
+```bash
+python3 scripts/repo_manager.py sync "<repo-url>"
+```
+
+This command:
+1. Checks `repo_map.json` for an existing entry (handles stale entries automatically)
+2. Clones with `--filter=blob:none` into `git-repo-cache/repos/<host>/<owner>/<repo>/`
+3. Resets the working tree to a clean state on the default branch
+4. Registers the repo in `repo_map.json` for future lookups
+5. Prints the local path to stdout
+
+After the clone, fetch and checkout the PR branches — same as Path B:
+
+```bash
+cd "$REPO_PATH"
+git fetch origin <baseRefName> <headRefName>
+git checkout <headRefName>
+```
+
+The same fallback sequence as Path B applies if checkout fails (`pull/<PR_NUMBER>/head` ref).
+
+**Why Path C over direct sparse clone**: For most repos (up to tens of thousands of files), the blobless clone is only a few MB of tree/commit metadata. The benefit is substantial — the repo persists in the shared cache, so future reviews, `git-repo-reader` queries, and other skills can reuse it without any clone at all. File blobs are fetched on demand when files are read, keeping the initial cost low.
+
+**Fallback to Path D**: Path C degrades to Path D in two cases: (1) the repo exceeds the 100 MB size threshold (detected before cloning), or (2) `repo_manager.py sync` fails at runtime (e.g., auth issues, network errors). The `[PATH-SIZE]` or `[PATH-FALLBACK]` trace line is emitted respectively.
+
+After review, the repo is reset to the default branch (same cleanup as Path B — see Step 7). The cached repo is **NOT deleted** — it is shared and reusable.
+
+### Path D: Blobless sparse clone to temp directory (large repos or fallback)
+
+Path D is used for **large repos** (> 100 MB per GitHub API) or as a **fallback** when Path C fails. It uses **blobless clone + sparse checkout** into a disposable temp directory under the skill's own cache, downloading only the directories needed for review.
 
 **Why NOT `--depth=1` or `--single-branch`**: With `--single-branch` the refspec is restricted to one branch, making it impossible to later `git fetch origin <headRefName>` for a different branch. `--depth=1` implies `--single-branch`. Using `--filter=blob:none --sparse` (without depth/single-branch) gives us all refs and history metadata at minimal cost — blobs are only fetched when files are actually checked out.
 
-**Path C location rule (MANDATORY):** Clone directly into the unified skill cache — never use `/tmp`, `$TMPDIR`, or any ad-hoc directory. The `path_select.py` trace already shows the target cache dir; clone into a fresh subdirectory of that path.
+**Path D location rule (MANDATORY):** Clone directly into the unified skill cache — never use `/tmp`, `$TMPDIR`, or any ad-hoc directory.
 
 Create a temp directory under the **unified skill cache**:
 
@@ -416,7 +458,7 @@ git fetch origin <headRefName>
 git checkout <headRefName>
 ```
 
-(Use `git checkout <headRefName>` directly — same reasoning as Path A/B: more reliable than `gh pr checkout` on Enterprise hosts.)
+(Use `git checkout <headRefName>` directly — same reasoning as Path A/B/C: more reliable than `gh pr checkout` on Enterprise hosts.)
 
 After review, delete the temp directory (see Step 7).
 
@@ -426,15 +468,16 @@ After review, delete the temp directory (see Step 7).
 |---|---|---|---|
 | A | Already inside target repo | Instant | Full repo |
 | B | Repo found in shared cache | Fast (just `fetch` two branches) | Full repo |
-| C | Repo not cached | Moderate (blobless clone) | Targeted files only |
+| C | Repo not cached, ≤ 100 MB — clone to shared cache | Moderate (blobless clone, reusable) | Full repo |
+| D | Repo > 100 MB, or Path C clone failed | Moderate (blobless sparse clone, disposable) | Targeted files only |
 
-Note: Path B can temporarily degrade to diff-only mode if branch fetch/checkout fails. This is allowed only when the fallback sequence above is attempted and logged.
+Note: Path B and C can temporarily degrade to diff-only mode if branch fetch/checkout fails. This is allowed only when the fallback sequence above is attempted and logged. Path C automatically falls back to Path D if the repo exceeds the size threshold or the clone fails.
 
 ## Step 4: Gather Repository Context
 
-### For Path A and Path B (full repo available)
+### For Path A, Path B, and Path C (full repo available)
 
-The full repo is available locally. Read files directly — git auto-fetches blob content on demand if using a blobless clone.
+The full repo is available locally. Read files directly — git auto-fetches blob content on demand (blobless clone).
 
 #### 4a. Project structure overview
 
@@ -495,7 +538,7 @@ If the diff references imports, base classes, interfaces, or function calls from
 - Read **3-5** related files that are strictly necessary to validate the correctness of the changes
 - Only read files where understanding their content directly affects review quality (e.g., interface definitions, base classes, callers of changed functions, related tests)
 
-### For Path C (blobless clone with sparse checkout)
+### For Path D (blobless clone with sparse checkout)
 
 #### 4a. Project structure overview
 
@@ -530,7 +573,7 @@ If the user provides a URL to another repository during the review (e.g., a back
 - It avoids duplicating clone logic inside this skill
 - Future reviews or questions about that repo will hit the cache instantly
 
-If the `git-repo-reader` skill is not available, fall back to a blobless clone in the review cache (same as Path C).
+If the `git-repo-reader` skill is not available, fall back to a blobless clone in the review cache (same as Path D).
 
 ## Step 5: Detect Language
 
@@ -738,29 +781,29 @@ cleanup_review_env() {
         echo "[PATH-CLEANUP] Path A - skipped (ORIGINAL_BRANCH unavailable)"
       fi
       ;;
-    B)
+    B|C)
       if [[ -n "${REPO_PATH:-}" ]] && [[ -d "$REPO_PATH/.git" ]]; then
         cd "$REPO_PATH" || true
         DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null | sed 's|origin/||')
         git checkout "${DEFAULT_BRANCH:-main}" >/dev/null 2>&1 || true
         git reset --hard "origin/${DEFAULT_BRANCH:-main}" >/dev/null 2>&1 || true
         git clean -fd >/dev/null 2>&1 || true
-        echo "[PATH-CLEANUP] Path B - reset cached repo to ${DEFAULT_BRANCH:-main}, ready for next use"
+        echo "[PATH-CLEANUP] Path ${SELECTED_PATH} - reset cached repo to ${DEFAULT_BRANCH:-main}, ready for next use"
       else
-        echo "[PATH-CLEANUP] Path B - skipped (REPO_PATH unavailable)"
+        echo "[PATH-CLEANUP] Path ${SELECTED_PATH} - skipped (REPO_PATH unavailable)"
       fi
       ;;
-    C)
+    D)
       REMOVED=()
       for d in "${REVIEW_DIR:-}" "${RUN_DIR:-}"; do
         if [[ -n "$d" ]] && [[ -e "$d" ]]; then
-          rm -rf "$d" && REMOVED+=("$d") || echo "[PATH-CLEANUP] Path C - failed to delete: $d"
+          rm -rf "$d" && REMOVED+=("$d") || echo "[PATH-CLEANUP] Path D - failed to delete: $d"
         fi
       done
       if [[ ${#REMOVED[@]} -gt 0 ]]; then
-        echo "[PATH-CLEANUP] Path C - deleted temp dirs: ${REMOVED[*]}"
+        echo "[PATH-CLEANUP] Path D - deleted temp dirs: ${REMOVED[*]}"
       else
-        echo "[PATH-CLEANUP] Path C - no temp dirs to delete"
+        echo "[PATH-CLEANUP] Path D - no temp dirs to delete"
       fi
       ;;
     *)
@@ -774,7 +817,7 @@ trap cleanup_review_env EXIT
 
 After the review is complete:
 - **Path A** (existing repo): Restore the original branch: `git checkout "$ORIGINAL_BRANCH"`
-- **Path B** (shared repo cache): Reset to a clean state on the default branch so the cached repo is ready for the next use:
+- **Path B** (shared repo cache) / **Path C** (newly cloned to shared cache): Reset to a clean state on the default branch so the cached repo is ready for the next use:
   ```bash
   cd "$REPO_PATH"
   DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null | sed 's|origin/||')
@@ -783,11 +826,11 @@ After the review is complete:
   git clean -fd
   ```
   **Do NOT delete the cached repo** — it is shared and will be reused.
-- **Path C** (blobless clone): Delete all temp directories created for this review under `mythril-skills-cache/github-code-review-pr/` (including repo/image run dirs such as `"$REVIEW_DIR"` and `"$RUN_DIR"` when present): `rm -rf "<dir>"`
+- **Path D** (blobless sparse clone): Delete all temp directories created for this review under `mythril-skills-cache/github-code-review-pr/` (including repo/image run dirs such as `"$REVIEW_DIR"` and `"$RUN_DIR"` when present): `rm -rf "<dir>"`
 
 **Path-specific cleanup rule (MANDATORY):**
-- If selected path is **C**, cleanup must delete the created temp directories.
-- Do NOT replace Path C cleanup with branch reset/clean commands; those are for Path B cached repos.
+- If selected path is **D**, cleanup must delete the created temp directories.
+- Do NOT replace Path D cleanup with branch reset/clean commands; those are for Path B/C cached repos.
 
 **User-facing cleanup confirmation is REQUIRED:**
 - After deletion, output a short status line that cleanup succeeded and which temp paths were removed (or how many were removed).
@@ -796,19 +839,19 @@ After the review is complete:
 The cleanup confirmation MUST be produced by an `echo` command inside the shell cleanup script, not written later as prose:
 
 ```bash
-# Example for Path B:
+# Example for Path B or Path C:
 echo "[PATH-CLEANUP] Path B - reset cached repo to main, ready for next use"
 
-# Example for Path C:
+# Example for Path D:
 rm -rf "$REVIEW_DIR" "$RUN_DIR"
-echo "[PATH-CLEANUP] Path C - deleted temp dirs: $REVIEW_DIR $RUN_DIR"
+echo "[PATH-CLEANUP] Path D - deleted temp dirs: $REVIEW_DIR $RUN_DIR"
 
 # Example for Path A:
 git checkout "$ORIGINAL_BRANCH"
 echo "[PATH-CLEANUP] Path A - restored branch to $ORIGINAL_BRANCH"
 ```
 
-Image artifacts and Path C temp directories live under `mythril-skills-cache/github-code-review-pr/`. If leftovers accumulate (e.g., from interrupted sessions), the user can run:
+Image artifacts and Path D temp directories live under `mythril-skills-cache/github-code-review-pr/`. If leftovers accumulate (e.g., from interrupted sessions), the user can run:
 ```bash
 skills-clean-cache
 ```
@@ -839,8 +882,8 @@ skills-clean-cache
 
 ### Example 2: Review by URL — repo not cached (English)
 **User input**: "Review this PR: https://github.com/owner/repo/pull/99"
-**Action**: Fetch PR metadata + diff → cache miss → blobless clone to temp dir (Path C) → sparse checkout → review in English
-**Output**: 6-section English review with targeted context
+**Action**: Fetch PR metadata + diff → cache miss → clone to shared cache (Path C) → checkout PR branch → review in English
+**Output**: 6-section English review with full repo context (repo now cached for future reviews)
 
 ### Example 3: Review in current repo context
 **User input**: "Review PR #15"

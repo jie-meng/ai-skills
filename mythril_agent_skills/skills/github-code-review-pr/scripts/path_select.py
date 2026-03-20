@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Select the local repo access path (A / B / C) for a PR review.
+"""Select the local repo access path (A / B / C / D) for a PR review.
 
 Checks paths in order:
   A — already inside the target repo (cwd matches the PR repo)
   B — repo found in shared git-repo-reader cache
-  C — no local access; caller must blobless-clone into the skill cache
+  C — no local access; caller will clone into shared cache via repo_manager.py
+  D — fallback if Path C clone fails; caller does blobless sparse-clone
+      into the skill's own temp cache
 
 Prints one [PATH-CHECK] line per path and a final [PATH-SELECTED] line,
 then prints machine-readable key-value lines for the caller:
 
-    SELECTED_PATH=A|B|C
+    SELECTED_PATH=A|B|C|D
     REPO_PATH=<absolute-path-or-empty>
 
 Exit codes:
@@ -28,9 +30,10 @@ Output (to stdout):
     [PATH-CHECK] A: HIT|MISS - <reason>
     [PATH-CHECK] B: HIT|MISS - <reason>
     [PATH-CHECK] C: SELECTED|SKIPPED - <reason>
-    [PATH-SELECTED] Path A|B|C
-    SELECTED_PATH=A|B|C
-    REPO_PATH=<absolute-path>          # only for Path B; empty for A and C
+    [PATH-CHECK] D: SELECTED|SKIPPED - <reason>
+    [PATH-SELECTED] Path A|B|C|D
+    SELECTED_PATH=A|B|C|D
+    REPO_PATH=<absolute-path>          # only for Path B; empty for A, C, and D
 
 Uses only Python 3.10+ standard library (zero dependencies).
 """
@@ -135,6 +138,7 @@ def main() -> None:
         )
         print("[PATH-CHECK] B: SKIPPED - Path A matched")
         print("[PATH-CHECK] C: SKIPPED - Path A matched")
+        print("[PATH-CHECK] D: SKIPPED - Path A matched")
         print("[PATH-SELECTED] Path A")
         print("SELECTED_PATH=A")
         print("REPO_PATH=")
@@ -154,6 +158,7 @@ def main() -> None:
     if cached_path:
         print(f"[PATH-CHECK] B: HIT - cached at {cached_path}")
         print("[PATH-CHECK] C: SKIPPED - Path B matched")
+        print("[PATH-CHECK] D: SKIPPED - Path B matched")
         print("[PATH-SELECTED] Path B")
         print("SELECTED_PATH=B")
         print(f"REPO_PATH={cached_path}")
@@ -162,24 +167,15 @@ def main() -> None:
     print("[PATH-CHECK] B: MISS - repo not found in shared git-repo-cache")
 
     # ── Path C ────────────────────────────────────────────────────────────────
-    # Compute the cache dir for Path C so it appears in the trace
-    system = platform.system()
-    home = Path.home()
-    if system == "Darwin":
-        cache_base = home / "Library" / "Caches"
-    elif system == "Windows":
-        local_app_data = os.environ.get("LOCALAPPDATA")
-        cache_base = (
-            Path(local_app_data) if local_app_data else home / "AppData" / "Local"
-        )
-    else:
-        xdg = os.environ.get("XDG_CACHE_HOME")
-        cache_base = Path(xdg) if xdg else home / ".cache"
-    skill_cache_dir = cache_base / "mythril-skills-cache" / "github-code-review-pr"
+    # Clone to shared git-repo-cache via repo_manager.py sync (reusable across
+    # sessions and skills). Path D is the fallback if C fails at runtime.
+    cache_root = get_cache_root()
+    shared_cache_dir = cache_root / "repos" / host / owner / repo_name
 
     print(
-        f"[PATH-CHECK] C: SELECTED - will blobless-clone into {skill_cache_dir}/<random-dir>"
+        f"[PATH-CHECK] C: SELECTED - will clone into shared cache at {shared_cache_dir}"
     )
+    print("[PATH-CHECK] D: SKIPPED - Path C selected (D is fallback if C fails)")
     print("[PATH-SELECTED] Path C")
     print("SELECTED_PATH=C")
     print("REPO_PATH=")
