@@ -26,7 +26,6 @@ TOOLS: list[tuple[str, str, str]] = [
     ("Codex", ".codex", "skills"),
     ("Gemini CLI", ".gemini", "skills"),
     ("Qwen CLI", ".qwen", "skills"),
-    ("iFlow CLI", ".iflow", "skills"),
     ("Opencode", ".config/opencode", "skills"),
     ("Grok CLI", ".grok", "skills"),
 ]

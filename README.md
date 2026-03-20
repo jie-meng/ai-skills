@@ -220,9 +220,8 @@ All config directories are relative to the user home directory (`~` on macOS/Lin
 | 4 | Codex | `~/.codex/skills/` |
 | 5 | Gemini CLI | `~/.gemini/skills/` |
 | 6 | Qwen CLI | `~/.qwen/skills/` |
-| 7 | iFlow CLI | `~/.iflow/skills/` |
-| 8 | Opencode | `~/.config/opencode/skills/` |
-| 9 | Grok CLI | `~/.grok/skills/` |
+| 7 | Opencode | `~/.config/opencode/skills/` |
+| 8 | Grok CLI | `~/.grok/skills/` |
 
 ### Cleanup installed skills
 
