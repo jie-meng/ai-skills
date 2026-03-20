@@ -219,12 +219,21 @@ Use authenticated retrieval in this order:
 2. If enterprise auth fails, retry:
    `curl -fsSL --negotiate -u : "<image_url>" -o "<local_path>"`
 
-Read downloaded images with image-capable tools and summarize:
+**Post-download validation (MANDATORY):** After each download, verify the file is actually an image — enterprise auth redirects often return HTTP 200 with an HTML login page instead of the real image. Run:
+
+```bash
+file --mime-type -b "<local_path>"
+```
+
+- If output starts with `image/` → valid image, proceed to read it.
+- If output is `text/html`, `text/plain`, or anything other than `image/*` → the download captured an auth redirect page, not the real image. **Treat this as a retrieval failure**: delete the file (`rm -f "<local_path>"`), do NOT attempt to read it, and do NOT retry reading it. Log a one-line note (e.g., "Image download returned HTML instead of image data — likely auth redirect, skipping") and move on.
+
+Only read **validated** images with image-capable tools and summarize:
 - what the screenshot shows (UI/debug panel/logs),
 - key values/events/URLs visible in the image,
 - whether screenshot evidence supports the PR claim.
 
-If image retrieval fails, report the exact reason and ask for one targeted unblock step (auth/access), but never claim image content was reviewed.
+If image retrieval fails (curl error, non-image content, or auth redirect), log the URL and reason, skip the image, and continue the review. Do NOT repeatedly attempt to read invalid files. If ALL images fail, note in the review that image evidence could not be verified due to access restrictions, and suggest the user check screenshots manually.
 
 ## Step 3: Get Local Access to the Repository
 
