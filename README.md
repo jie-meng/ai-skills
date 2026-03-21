@@ -143,9 +143,10 @@ Process and manipulate video and audio files via FFmpeg CLI. Supports transcodin
 
 ## Quick Start
 
-Choose the path that fits your needs:
+Use as-is skills:
 
-### Option A: Use the skills provided (install via pip)
+<details>
+<summary>Option A: Install via pip</summary>
 
 If you just want to install and use existing skills, start here.
 Install it from PyPI — no need to clone the repository:
@@ -203,12 +204,15 @@ The checker will:
 - Prompt for missing API keys/tokens and save them to your shell config file
 - Verify authentication status (e.g. `gh auth status`)
 
-### Option B: Claude Code plugin (one-command install)
+</details>
+
+<details>
+<summary>Option B: Claude Code plugin marketplace</summary>
 
 If you use [Claude Code](https://code.claude.com/), you can install skills as a [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) — no pip required. See also: [discover and install plugins](https://code.claude.com/docs/en/discover-plugins).
 
+Add the marketplace:
 ```bash
-# Add the marketplace
 /plugin marketplace add jie-meng/mythril-agent-skills
 ```
 
@@ -225,6 +229,12 @@ Or install individual skills as needed:
 /plugin install jira@mythril-agent-skills
 /plugin install github-code-review-pr@mythril-agent-skills
 ```
+
+You can use `/plugin discover` to interactively find and install plugins:
+
+<p align="center">
+  <img src="docs/assets/cc-plugin-usage.webp" width="600" alt="Add marketplace and install plugin">
+</p>
 
 <details>
 <summary>All available plugins</summary>
@@ -266,7 +276,12 @@ To remove the marketplace entirely (also uninstalls all its plugins):
 
 > **Note:** This option installs skills into Claude Code only. For multi-tool support (Cursor, Copilot, Codex, Gemini CLI, etc.), use Option A.
 
-### Option C: Customize your own skills (GitHub fork or independent clone)
+</details>
+
+Or customize your own skills:
+
+<details>
+<summary>Option C: GitHub fork or independent clone</summary>
 
 If you want to customize skills and keep your own repository, you have two equivalent paths:
 
@@ -338,6 +353,8 @@ For the full guide, see **[docs/FORK-SYNC.md](./docs/FORK-SYNC.md)**.
 
 - Works well when you **only add custom skills with unique names** — no conflicts
 - If you've **modified an upstream skill** (e.g., customized `jira`), you may get merge conflicts that need manual resolution
+
+</details>
 
 ---
 
