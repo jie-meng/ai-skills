@@ -82,15 +82,57 @@ Detailed instructions, examples, and workflows...
 python3 mythril_agent_skills/skills/skill-creator/scripts/quick_validate.py mythril_agent_skills/skills/my-skill
 ```
 
-4. If the skill has Python scripts, add unit tests in `tests/skills/`.
+4. Validate description length (must not exceed 1024 characters — multiple AI tools enforce this limit at load time and silently skip skills that exceed it):
 
-5. Commit following this format:
+```bash
+python3 scripts/validate-skill-descriptions.py                # check all skills
+python3 scripts/validate-skill-descriptions.py --limit 512     # custom limit
+python3 scripts/validate-skill-descriptions.py --skills-dir mythril_agent_skills/skills  # explicit path
+```
+
+5. If the skill has Python scripts, add unit tests in `tests/skills/`.
+
+6. Commit following this format:
 
 ```bash
 git commit -m "[my-skill] Add initial skill with core workflows"
 ```
 
 For full conventions (naming, description limits, security rules, cache usage, ordering), see [AGENTS.md](../AGENTS.md).
+
+## Versioning Strategy
+
+All version numbers across the project use a **single unified version**. The pip package version, Python `__version__`, and every plugin entry in `marketplace.json` always share the same semver string. There are no per-plugin version numbers.
+
+### Why unified versioning
+
+- Per-skill plugins (`plugins/<name>/`) are thin symlink wrappers pointing back into the main package — they share the same source code and cannot be released independently
+- Claude Code uses the version field solely to detect updates and bust its plugin cache; a unified bump ensures all users get the latest content
+- Independent versions would add maintenance overhead (per-skill changelogs, selective bumps) with no practical benefit in a monorepo
+
+### Where the version lives
+
+| File | Field | Updated by |
+|---|---|---|
+| `pyproject.toml` | `version = "x.y.z"` | `bump-version.py` |
+| `mythril_agent_skills/__init__.py` | `__version__ = "x.y.z"` | `bump-version.py` |
+| `.claude-plugin/marketplace.json` | `"version": "x.y.z"` (all plugin entries) | `bump-version.py` |
+
+### Bumping the version
+
+```bash
+python3 scripts/bump-version.py          # show current versions
+python3 scripts/bump-version.py 0.3.0    # bump all three files
+```
+
+The script updates all files in one shot and verifies consistency afterwards. The publish script (`scripts/publish.py`) also checks that all three sources agree before uploading — if any version is out of sync, it aborts with an actionable error.
+
+Follow [Semantic Versioning](https://semver.org/):
+- **Patch** (`0.2.4` → `0.2.5`): bug fixes, doc updates
+- **Minor** (`0.2.4` → `0.3.0`): new skills, new features
+- **Major** (`0.2.4` → `1.0.0`): breaking changes
+
+---
 
 ## Claude Code Plugin Marketplace
 
@@ -108,15 +150,6 @@ Reference docs:
 - Each per-skill plugin is a thin wrapper directory containing a symlink: `plugins/<name>/skills/<name>` → `mythril_agent_skills/skills/<name>`
 - All plugins use `strict: false`, so no separate `plugin.json` is needed — the marketplace entry defines everything
 - Claude Code follows symlinks when copying plugins to cache, so the actual skill content is resolved correctly
-
-### Keeping the marketplace version in sync
-
-Use the bump script to update all version fields at once:
-
-```bash
-python3 scripts/bump-version.py 0.3.0    # update pyproject.toml + __init__.py + marketplace.json
-python3 scripts/bump-version.py          # show current versions
-```
 
 ### Adding a new skill to the marketplace
 

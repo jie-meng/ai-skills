@@ -154,9 +154,11 @@ This repository doubles as a [Claude Code plugin marketplace](https://code.claud
 - **Per-skill plugins** (`figma`, `jira`, etc.): source `./plugins/<name>` — each is a thin wrapper with a symlink `skills/<name>` → `../../../mythril_agent_skills/skills/<name>`
 - All plugins use `strict: false` — no `plugin.json` needed; marketplace entry is the full definition
 
-### Version sync
+### Versioning
 
-Use `python3 scripts/bump-version.py <version>` to update all three files (`pyproject.toml`, `__init__.py`, `marketplace.json`) at once.
+All plugins share a **single unified version** — the same semver string as the pip package. Per-skill plugins are symlink wrappers with no independent code, so independent versions would have no meaning.
+
+Use `python3 scripts/bump-version.py <version>` to update all three files (`pyproject.toml`, `__init__.py`, `marketplace.json`) at once. The publish script (`scripts/publish.py`) checks all three sources for consistency before uploading.
 
 ### Adding a new skill to the marketplace
 
@@ -219,15 +221,9 @@ Detailed instructions, examples, and workflows...
 - `compatibility`: Tool/platform requirements
 
 **Character limit**:
-- **The `description` field MUST be at most 1024 characters.** Multiple AI tools enforce this limit at load time — skills with longer descriptions will fail to load silently. Always verify length after editing a description. You can check all skills at once:
+- **The `description` field MUST be at most 1024 characters.** Multiple AI tools enforce this limit at load time — skills with longer descriptions will fail to load silently. Always verify length after editing a description:
   ```bash
-  python3 -c "
-  import yaml, pathlib
-  for p in sorted(pathlib.Path('mythril_agent_skills/skills').glob('*/SKILL.md')):
-      fm = yaml.safe_load(p.read_text().split('---', 2)[1])
-      d = fm.get('description', ''); n = len(d)
-      print(f\"{'!!' if n > 1024 else '  '} {p.parent.name}: {n} chars\")
-  "
+  python3 scripts/validate-skill-descriptions.py
   ```
 
 **Tips for a good description**:
@@ -389,6 +385,12 @@ Validate a skill's SKILL.md structure before committing:
 
 ```bash
 python3 mythril_agent_skills/skills/skill-creator/scripts/quick_validate.py <skill-path>
+```
+
+Validate description length across all skills (must not exceed 1024 characters):
+
+```bash
+python3 scripts/validate-skill-descriptions.py
 ```
 
 ---

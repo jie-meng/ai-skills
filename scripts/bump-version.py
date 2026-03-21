@@ -102,18 +102,17 @@ def _update_init(new_version: str) -> None:
     INIT_FILE.write_text(updated)
 
 
-def _update_marketplace(new_version: str) -> None:
+def _update_marketplace(new_version: str) -> int:
     """Update all version fields in marketplace.json."""
     if not MARKETPLACE.exists():
         print(f"{YELLOW}Warning: {MARKETPLACE} not found, skipping.{NC}")
-        return
+        return 0
 
     data = json.loads(MARKETPLACE.read_text())
     count = 0
     for plugin in data.get("plugins", []):
-        if "version" in plugin:
-            plugin["version"] = new_version
-            count += 1
+        plugin["version"] = new_version
+        count += 1
 
     MARKETPLACE.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return count
@@ -160,9 +159,28 @@ def main() -> None:
             f" ({plugin_count} plugins)"
         )
 
-    # Verify
+    # Verify consistency
     print(f"\n{BOLD}Verification:{NC}")
     _show_current()
+
+    versions = _read_current_versions()
+    sources = {
+        "pyproject.toml": versions["pyproject.toml"],
+        "__init__.py": versions["__init__.py"],
+    }
+    all_match = all(v == new_version for v in sources.values())
+
+    if "marketplace.json" in versions:
+        for entry in versions["marketplace.json"]:
+            name, ver = entry.split("=", 1)
+            if ver != new_version:
+                all_match = False
+                break
+
+    if not all_match:
+        print(f"\n{RED}Error: version mismatch detected after bump!{NC}")
+        sys.exit(1)
+
     print(f"\n{GREEN}Done.{NC} Don't forget to commit and tag:")
     print(f"  git add -A && git commit -m 'Bump version to {new_version}'")
     print(f"  git tag v{new_version}")

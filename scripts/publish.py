@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import re
 import shutil
@@ -22,6 +23,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = PROJECT_ROOT / "pyproject.toml"
 INIT_FILE = PROJECT_ROOT / "mythril_agent_skills" / "__init__.py"
+MARKETPLACE = PROJECT_ROOT / ".claude-plugin" / "marketplace.json"
 DIST_DIR = PROJECT_ROOT / "dist"
 
 GREEN = "\033[0;32m"
@@ -202,7 +204,7 @@ def main() -> None:
 
     print(f"{BOLD}=== Publish mythril-agent-skills ==={NC}\n")
 
-    # Version check
+    # Version check — all three sources must agree
     init_ver = _get_version_from_init()
     pyproject_ver = _get_version_from_pyproject()
 
@@ -212,6 +214,25 @@ def main() -> None:
             f"__init__.py={init_ver}, pyproject.toml={pyproject_ver}{NC}"
         )
         sys.exit(1)
+
+    if MARKETPLACE.exists():
+        data = json.loads(MARKETPLACE.read_text())
+        mismatched = [
+            f'{p["name"]}={p["version"]}'
+            for p in data.get("plugins", [])
+            if p.get("version") != init_ver
+        ]
+        if mismatched:
+            print(
+                f"{RED}Version mismatch in marketplace.json "
+                f"(expected {init_ver}):{NC}"
+            )
+            for entry in mismatched:
+                print(f"    {entry}")
+            print(
+                f"  Run: python3 scripts/bump-version.py {init_ver}"
+            )
+            sys.exit(1)
 
     print(f"  Version: {GREEN}{init_ver}{NC}")
 

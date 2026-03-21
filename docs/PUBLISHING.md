@@ -81,7 +81,9 @@ python3 scripts/bump-version.py 0.3.0    # set new version
 python3 scripts/bump-version.py          # show current version
 ```
 
-The publish script checks `pyproject.toml` and `__init__.py` for consistency and aborts if they differ.
+The publish script checks all three files for consistency and aborts if any version is out of sync.
+
+For the rationale behind unified versioning (no per-plugin versions), see [DEVELOPMENT.md — Versioning Strategy](./DEVELOPMENT.md#versioning-strategy).
 
 Follow [Semantic Versioning](https://semver.org/):
 - **Patch** (`0.1.0` → `0.1.1`): bug fixes, doc updates
@@ -110,7 +112,7 @@ python3 scripts/publish.py --test
 
 ### What the publish script does
 
-1. **Version check** — verifies `pyproject.toml` and `__init__.py` versions match
+1. **Version check** — verifies `pyproject.toml`, `__init__.py`, and `marketplace.json` versions all match
 2. **Git status check** — warns if there are uncommitted changes
 3. **Tool setup** — auto-installs `build` and `twine` if missing
 4. **Clean** — removes old `dist/` artifacts
