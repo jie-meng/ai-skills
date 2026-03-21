@@ -422,10 +422,11 @@ def _curses_tool_select(
     curses.curs_set(0)
     curses.use_default_colors()
     curses.init_pair(1, curses.COLOR_CYAN, -1)
-    curses.init_pair(2, curses.COLOR_GREEN, -1)
+    curses.init_pair(2, curses.COLOR_RED, -1)
     curses.init_pair(3, curses.COLOR_YELLOW, -1)
+    curses.init_pair(4, curses.COLOR_GREEN, -1)
 
-    selected = [True] * len(items)
+    selected = [False] * len(items)
     cursor = 0
     all_item = "Select All / Deselect All"
     total_items = 1 + len(items)
@@ -457,7 +458,7 @@ def _curses_tool_select(
         for i, item in enumerate(items):
             marker = "[x]" if selected[i] else "[ ]"
             attr = curses.A_REVERSE if cursor == i + 1 else 0
-            color = curses.color_pair(2) if selected[i] else 0
+            color = curses.color_pair(2) if selected[i] else curses.color_pair(4)
             try:
                 stdscr.addstr(row + i, 0, f"  {marker}  {item}", attr | color)
             except curses.error:
