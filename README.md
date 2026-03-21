@@ -203,7 +203,58 @@ The checker will:
 - Prompt for missing API keys/tokens and save them to your shell config file
 - Verify authentication status (e.g. `gh auth status`)
 
-### Option B: Customize your own skills (GitHub fork or independent clone)
+### Option B: Claude Code plugin (one-command install)
+
+If you use [Claude Code](https://code.claude.com/), you can install skills as a [plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) — no pip required. See also: [discover and install plugins](https://code.claude.com/docs/en/discover-plugins).
+
+```bash
+# Add the marketplace
+/plugin marketplace add jie-meng/mythril-agent-skills
+```
+
+Install all skills at once:
+
+```bash
+/plugin install all-skills@mythril-agent-skills
+```
+
+Or install individual skills as needed:
+
+```bash
+/plugin install figma@mythril-agent-skills
+/plugin install jira@mythril-agent-skills
+/plugin install github-code-review-pr@mythril-agent-skills
+```
+
+<details>
+<summary>All available plugins</summary>
+
+| Plugin | Description |
+|---|---|
+| `all-skills` | All-in-one bundle (all 11 skills) |
+| `skill-creator` | Create and improve skills/prompts for any AI platform |
+| `code-review-staged` | Code review for git staged changes |
+| `branch-diff-review` | Code review for local branch differences |
+| `github-code-review-pr` | PR code review via GitHub CLI |
+| `git-repo-reader` | Clone, cache, and read any git repository |
+| `gh-operations` | GitHub CLI operations for issues and PRs |
+| `jira` | Jira REST API integration |
+| `confluence` | Confluence REST API integration |
+| `figma` | Extract Figma design specs |
+| `imagemagick` | Image processing via ImageMagick CLI |
+| `ffmpeg` | Video and audio processing via FFmpeg CLI |
+
+</details>
+
+To update later:
+
+```bash
+/plugin marketplace update mythril-agent-skills
+```
+
+> **Note:** This option installs skills into Claude Code only. For multi-tool support (Cursor, Copilot, Codex, Gemini CLI, etc.), use Option A.
+
+### Option C: Customize your own skills (GitHub fork or independent clone)
 
 If you want to customize skills and keep your own repository, you have two equivalent paths:
 
@@ -363,7 +414,9 @@ cp -r mythril_agent_skills/skills/skill-name ./your-project/.claude/skills/
 
 ```
 mythril-agent-skills/
-├── mythril_agent_skills/        # Python package
+├── .claude-plugin/              # Claude Code plugin marketplace
+│   └── marketplace.json         # Plugin catalog for /plugin install
+├── mythril_agent_skills/        # Python package (also the all-in-one plugin)
 │   ├── cli/                     # CLI entry points
 │   │   ├── skills_setup.py      # Interactive installer
 │   │   ├── skills_cleanup.py    # Interactive remover
@@ -377,6 +430,7 @@ mythril-agent-skills/
 │       ├── jira/                # Jira REST API issue/sprint/board workflows
 │       ├── code-review-staged/  # Structured code reviews
 │       └── git-repo-reader/     # Clone and read any git repo
+├── plugins/                     # Per-skill plugin wrappers (symlinks into skills/)
 ├── scripts/                     # Dev scripts & backward-compatible wrappers
 │   ├── sync-upstream.py         # Fork upstream sync tool
 │   └── init-fork.py             # One-time fork initializer (detach + git re-init)

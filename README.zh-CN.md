@@ -203,7 +203,58 @@ skills-clean-cache --repos  # 交互式：选择要删除的仓库
 - 提示输入缺失的 API 密钥/Token 并保存到 shell 配置文件
 - 验证认证状态（如 `gh auth status`）
 
-### 方式 B：自定义技能（GitHub Fork 或独立克隆）
+### 方式 B：Claude Code 插件（一条命令安装）
+
+如果你使用 [Claude Code](https://code.claude.com/)，可以通过[插件市场](https://code.claude.com/docs/en/plugin-marketplaces)安装技能，无需 pip。另见：[发现和安装插件](https://code.claude.com/docs/en/discover-plugins)。
+
+```bash
+# 添加市场
+/plugin marketplace add jie-meng/mythril-agent-skills
+```
+
+一键安装所有技能：
+
+```bash
+/plugin install all-skills@mythril-agent-skills
+```
+
+或按需安装单个技能：
+
+```bash
+/plugin install figma@mythril-agent-skills
+/plugin install jira@mythril-agent-skills
+/plugin install github-code-review-pr@mythril-agent-skills
+```
+
+<details>
+<summary>全部可用插件</summary>
+
+| 插件 | 描述 |
+|---|---|
+| `all-skills` | 全部技能包（共 11 个） |
+| `skill-creator` | 为任意 AI 平台创建/改进技能和提示词 |
+| `code-review-staged` | 暂存区代码审查 |
+| `branch-diff-review` | 本地分支差异代码审查 |
+| `github-code-review-pr` | 通过 GitHub CLI 审查 PR |
+| `git-repo-reader` | 克隆、缓存并阅读任意 git 仓库 |
+| `gh-operations` | GitHub CLI 操作（issue 和 PR） |
+| `jira` | Jira REST API 集成 |
+| `confluence` | Confluence REST API 集成 |
+| `figma` | 提取 Figma 设计规格 |
+| `imagemagick` | 通过 ImageMagick CLI 处理图片 |
+| `ffmpeg` | 通过 FFmpeg CLI 处理视频和音频 |
+
+</details>
+
+后续更新：
+
+```bash
+/plugin marketplace update mythril-agent-skills
+```
+
+> **提示：** 此方式仅将技能安装到 Claude Code。如需支持多个工具（Cursor、Copilot、Codex、Gemini CLI 等），请使用方式 A。
+
+### 方式 C：自定义技能（GitHub Fork 或独立克隆）
 
 如果想自定义技能并维护自己的仓库，有两种等效方式：
 
@@ -363,7 +414,9 @@ cp -r mythril_agent_skills/skills/skill-name ./your-project/.claude/skills/
 
 ```
 mythril-agent-skills/
-├── mythril_agent_skills/        # Python 包
+├── .claude-plugin/              # Claude Code 插件市场
+│   └── marketplace.json         # 插件目录，供 /plugin install 使用
+├── mythril_agent_skills/        # Python 包（同时也是全量插件）
 │   ├── cli/                     # CLI 入口点
 │   │   ├── skills_setup.py      # 交互式安装器
 │   │   ├── skills_cleanup.py    # 交互式卸载器
@@ -377,6 +430,7 @@ mythril-agent-skills/
 │       ├── jira/                # Jira REST API issue/sprint/board 工作流
 │       ├── code-review-staged/  # 结构化代码审查
 │       └── git-repo-reader/     # 克隆并阅读任意 git 仓库
+├── plugins/                     # 单技能插件包装器（symlink 指向 skills/）
 ├── scripts/                     # 开发脚本及向后兼容包装器
 │   ├── sync-upstream.py         # Fork 上游同步工具
 │   └── init-fork.py             # 一次性 Fork 初始化（脱钩 + git 重初始化）

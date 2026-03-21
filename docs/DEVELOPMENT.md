@@ -92,6 +92,56 @@ git commit -m "[my-skill] Add initial skill with core workflows"
 
 For full conventions (naming, description limits, security rules, cache usage, ordering), see [AGENTS.md](../AGENTS.md).
 
+## Claude Code Plugin Marketplace
+
+This repository is also a [Claude Code plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces). The marketplace catalog is at `.claude-plugin/marketplace.json` and exposes all bundled skills as installable plugins for Claude Code users.
+
+Reference docs:
+- [Create and distribute a plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces) — marketplace.json schema, plugin sources, hosting
+- [Create plugins](https://code.claude.com/docs/en/plugins) — plugin structure, skills, agents, hooks
+- [Discover and install plugins](https://code.claude.com/docs/en/discover-plugins) — user-facing install commands
+- [Plugins reference](https://code.claude.com/docs/en/plugins-reference) — full technical specifications
+
+### How it works
+
+- The `marketplace.json` lists an **all-in-one plugin** (`all-skills`) whose source points to `./mythril_agent_skills`, plus **individual plugins** for each skill under `./plugins/<name>`
+- Each per-skill plugin is a thin wrapper directory containing a symlink: `plugins/<name>/skills/<name>` → `mythril_agent_skills/skills/<name>`
+- All plugins use `strict: false`, so no separate `plugin.json` is needed — the marketplace entry defines everything
+- Claude Code follows symlinks when copying plugins to cache, so the actual skill content is resolved correctly
+
+### Keeping the marketplace version in sync
+
+Use the bump script to update all version fields at once:
+
+```bash
+python3 scripts/bump-version.py 0.3.0    # update pyproject.toml + __init__.py + marketplace.json
+python3 scripts/bump-version.py          # show current versions
+```
+
+### Adding a new skill to the marketplace
+
+```bash
+# 1. Create the plugin wrapper
+mkdir -p plugins/<name>/skills
+ln -s ../../../mythril_agent_skills/skills/<name> plugins/<name>/skills/<name>
+
+# 2. Add a new plugin entry in .claude-plugin/marketplace.json
+# 3. The all-skills plugin picks it up automatically
+```
+
+### Testing locally
+
+```bash
+# In Claude Code, add the local marketplace
+/plugin marketplace add ./path/to/mythril-agent-skills
+
+# Install the all-in-one plugin
+/plugin install all-skills@mythril-agent-skills
+
+# Or install a single skill
+/plugin install figma@mythril-agent-skills
+```
+
 ## Publishing
 
 See [docs/PUBLISHING.md](./PUBLISHING.md) for PyPI publishing and testing instructions.

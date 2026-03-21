@@ -66,14 +66,22 @@ If neither env var nor `.pypirc` is configured, the publish script will prompt y
 
 ## Version Management
 
-The version is defined in **two files** — they must always match:
+The version is defined in **three files** — they must always match:
 
 | File | Field |
 |---|---|
 | `pyproject.toml` | `version = "x.y.z"` |
 | `mythril_agent_skills/__init__.py` | `__version__ = "x.y.z"` |
+| `.claude-plugin/marketplace.json` | `"version": "x.y.z"` (all plugin entries) |
 
-The publish script checks for consistency and aborts if they differ.
+Use the bump script to update all files at once:
+
+```bash
+python3 scripts/bump-version.py 0.3.0    # set new version
+python3 scripts/bump-version.py          # show current version
+```
+
+The publish script checks `pyproject.toml` and `__init__.py` for consistency and aborts if they differ.
 
 Follow [Semantic Versioning](https://semver.org/):
 - **Patch** (`0.1.0` → `0.1.1`): bug fixes, doc updates
@@ -200,7 +208,7 @@ rm -rf /tmp/verify-mas
 
 Before every release:
 
-- [ ] Version bumped in both `pyproject.toml` and `mythril_agent_skills/__init__.py`
+- [ ] Version bumped in all three files (`python3 scripts/bump-version.py <version>`)
 - [ ] All changes committed and pushed
 - [ ] `pip install -e .` works locally
 - [ ] `skills-setup`, `skills-cleanup`, `skills-check` run correctly

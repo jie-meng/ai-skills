@@ -17,13 +17,19 @@ Tech Stack:
 
 ```
 mythril-agent-skills/
-├── mythril_agent_skills/        # Python package
+├── .claude-plugin/              # Claude Code plugin marketplace
+│   └── marketplace.json         # Plugin catalog for /plugin install
+├── mythril_agent_skills/        # Python package (also the all-in-one plugin)
 │   ├── __init__.py
 │   ├── cli/                     # CLI entry points
 │   │   ├── skills_setup.py      # Interactive installer
 │   │   ├── skills_cleanup.py    # Interactive remover
 │   │   └── skills_check.py      # Dependency checker & configurator
 │   └── skills/                  # Bundled skill definitions
+├── plugins/                     # Per-skill plugin wrappers (symlinks into skills/)
+│   ├── figma/skills/figma       # → mythril_agent_skills/skills/figma
+│   ├── jira/skills/jira         # → mythril_agent_skills/skills/jira
+│   └── .../                     # One wrapper per skill
 ├── tests/                       # Unit tests
 │   ├── conftest.py              # Shared fixtures (sys.path setup)
 │   └── skills/                  # One test file per skill
@@ -135,6 +141,38 @@ All config directories are relative to the user home directory (`~` on macOS/Lin
 | 6 | Qwen CLI | `~/.qwen/` | `~/.qwen/skills/` |
 | 7 | Opencode | `~/.config/opencode/` | `~/.config/opencode/skills/` |
 | 8 | Grok CLI | `~/.grok/` | `~/.grok/skills/` |
+
+---
+
+## Claude Code Plugin Marketplace
+
+This repository doubles as a [Claude Code plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces). The catalog at `.claude-plugin/marketplace.json` exposes all bundled skills as a single installable plugin.
+
+### Architecture
+
+- **All-in-one plugin** (`all-skills`): source `./mythril_agent_skills` — Claude Code auto-discovers all skills from `skills/*/SKILL.md`
+- **Per-skill plugins** (`figma`, `jira`, etc.): source `./plugins/<name>` — each is a thin wrapper with a symlink `skills/<name>` → `../../../mythril_agent_skills/skills/<name>`
+- All plugins use `strict: false` — no `plugin.json` needed; marketplace entry is the full definition
+
+### Version sync
+
+Use `python3 scripts/bump-version.py <version>` to update all three files (`pyproject.toml`, `__init__.py`, `marketplace.json`) at once.
+
+### Adding a new skill to the marketplace
+
+When adding a new skill directory under `mythril_agent_skills/skills/<name>/`:
+
+1. Create the plugin wrapper: `mkdir -p plugins/<name>/skills && ln -s ../../../mythril_agent_skills/skills/<name> plugins/<name>/skills/<name>`
+2. Add a new plugin entry in `.claude-plugin/marketplace.json`
+3. The `all-skills` plugin picks it up automatically (no change needed)
+
+### User installation
+
+```bash
+/plugin marketplace add jie-meng/mythril-agent-skills
+/plugin install all-skills@mythril-agent-skills          # all skills
+/plugin install figma@mythril-agent-skills               # single skill
+```
 
 ---
 
