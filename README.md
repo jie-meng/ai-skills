@@ -252,6 +252,18 @@ To update later:
 /plugin marketplace update mythril-agent-skills
 ```
 
+To uninstall a plugin:
+
+```bash
+/plugin uninstall figma@mythril-agent-skills
+```
+
+To remove the marketplace entirely (also uninstalls all its plugins):
+
+```bash
+/plugin marketplace remove mythril-agent-skills
+```
+
 > **Note:** This option installs skills into Claude Code only. For multi-tool support (Cursor, Copilot, Codex, Gemini CLI, etc.), use Option A.
 
 ### Option C: Customize your own skills (GitHub fork or independent clone)

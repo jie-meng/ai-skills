@@ -252,6 +252,18 @@ skills-clean-cache --repos  # 交互式：选择要删除的仓库
 /plugin marketplace update mythril-agent-skills
 ```
 
+卸载单个插件：
+
+```bash
+/plugin uninstall figma@mythril-agent-skills
+```
+
+移除整个市场（同时卸载所有已安装的插件）：
+
+```bash
+/plugin marketplace remove mythril-agent-skills
+```
+
 > **提示：** 此方式仅将技能安装到 Claude Code。如需支持多个工具（Cursor、Copilot、Codex、Gemini CLI 等），请使用方式 A。
 
 ### 方式 C：自定义技能（GitHub Fork 或独立克隆）
