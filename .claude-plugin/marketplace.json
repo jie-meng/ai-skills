@@ -11,144 +11,235 @@
       "name": "all-skills",
       "source": "./mythril_agent_skills",
       "description": "All-in-one bundle: code review, Git/GitHub, Jira, Confluence, Figma, ImageMagick, FFmpeg, blog writer, and skill creator",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "homepage": "https://github.com/jie-meng/mythril-agent-skills",
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["code-review", "git", "github", "jira", "confluence", "figma", "imagemagick", "ffmpeg", "skill-creator", "blog-writer"],
+      "tags": [
+        "code-review",
+        "git",
+        "github",
+        "jira",
+        "confluence",
+        "figma",
+        "imagemagick",
+        "ffmpeg",
+        "skill-creator",
+        "blog-writer"
+      ],
       "strict": false
     },
     {
       "name": "skill-creator",
       "source": "./plugins/skill-creator",
       "description": "Create and improve skills/prompts for any AI platform — drafting, evaluation, benchmarking, description optimization",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["skill", "prompt", "creator"],
+      "tags": [
+        "skill",
+        "prompt",
+        "creator"
+      ],
       "strict": false
     },
     {
       "name": "code-review-staged",
       "source": "./plugins/code-review-staged",
       "description": "Context-aware code review for git staged changes with auto-generated commit messages",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["code-review", "git", "staged"],
+      "tags": [
+        "code-review",
+        "git",
+        "staged"
+      ],
       "strict": false
     },
     {
       "name": "branch-diff-review",
       "source": "./plugins/branch-diff-review",
       "description": "Context-aware code review for local branch differences — pure git, no platform API required",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["code-review", "git", "branch", "diff"],
+      "tags": [
+        "code-review",
+        "git",
+        "branch",
+        "diff"
+      ],
       "strict": false
     },
     {
       "name": "github-code-review-pr",
       "source": "./plugins/github-code-review-pr",
       "description": "Comprehensive Pull Request code review via GitHub CLI with deep repo context",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["code-review", "github", "pull-request"],
+      "tags": [
+        "code-review",
+        "github",
+        "pull-request"
+      ],
       "strict": false
     },
     {
       "name": "git-repo-reader",
       "source": "./plugins/git-repo-reader",
       "description": "Clone, cache, and read any git repository for code exploration and analysis",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["git", "clone", "repo", "reader"],
+      "tags": [
+        "git",
+        "clone",
+        "repo",
+        "reader"
+      ],
       "strict": false
     },
     {
       "name": "gh-operations",
       "source": "./plugins/gh-operations",
       "description": "GitHub CLI operations for issues, PRs, status checks, and comments",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["github", "issues", "pull-request", "gh"],
+      "tags": [
+        "github",
+        "issues",
+        "pull-request",
+        "gh"
+      ],
       "strict": false
     },
     {
       "name": "jira",
       "source": "./plugins/jira",
       "description": "Jira REST API integration for issues, sprints, boards, and workflows",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "productivity",
-      "tags": ["jira", "issues", "sprint", "atlassian"],
+      "tags": [
+        "jira",
+        "issues",
+        "sprint",
+        "atlassian"
+      ],
       "strict": false
     },
     {
       "name": "confluence",
       "source": "./plugins/confluence",
       "description": "Confluence REST API integration for pages, spaces, comments, and labels",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "productivity",
-      "tags": ["confluence", "wiki", "atlassian"],
+      "tags": [
+        "confluence",
+        "wiki",
+        "atlassian"
+      ],
       "strict": false
     },
     {
       "name": "figma",
       "source": "./plugins/figma",
       "description": "Extract Figma design specs (layout, colors, typography, components) for implementation",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["figma", "design", "ui"],
+      "tags": [
+        "figma",
+        "design",
+        "ui"
+      ],
       "strict": false
     },
     {
       "name": "imagemagick",
       "source": "./plugins/imagemagick",
       "description": "Image processing via ImageMagick CLI — resize, convert, crop, watermark, batch process",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["image", "imagemagick", "media"],
+      "tags": [
+        "image",
+        "imagemagick",
+        "media"
+      ],
       "strict": false
     },
     {
       "name": "ffmpeg",
       "source": "./plugins/ffmpeg",
       "description": "Video and audio processing via FFmpeg CLI — transcode, trim, merge, compress, convert formats",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "development",
-      "tags": ["video", "audio", "ffmpeg", "media"],
+      "tags": [
+        "video",
+        "audio",
+        "ffmpeg",
+        "media"
+      ],
       "strict": false
     },
     {
       "name": "blog-writer",
       "source": "./plugins/blog-writer",
       "description": "Write, refine, and adapt blog posts with a tech-first focus — asks language first, supports technical and non-technical topics",
-      "version": "0.2.4",
-      "author": { "name": "Jie Meng" },
+      "version": "0.2.5",
+      "author": {
+        "name": "Jie Meng"
+      },
       "license": "Apache-2.0",
       "category": "productivity",
-      "tags": ["blog", "writing", "technical", "multilingual"],
+      "tags": [
+        "blog",
+        "writing",
+        "technical",
+        "multilingual"
+      ],
       "strict": false
     }
   ]
